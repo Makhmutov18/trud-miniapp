@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Search,
   Home,
@@ -41,7 +42,7 @@ import {
   updateItem,
   deleteItem,
 } from "./api";
-import { bootTelegram } from "./telegram";
+import { bootTelegram, hapticImpact, hapticSuccess } from "./telegram";
 
 type NavId = "home" | "pastry" | "checklist" | "reports";
 
@@ -223,9 +224,9 @@ function App() {
   const currentFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
 
   return (
-    <div className="min-h-dvh bg-linen text-coal">
+    <div className="min-h-dvh bg-[#F4F1EA] text-coal">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-linen/90 backdrop-blur-sm border-b border-line">
+      <header className="sticky top-0 z-40 bg-[#F4F1EA]/90 backdrop-blur-sm border-b border-line">
         <div className="max-w-lg mx-auto flex items-center justify-center h-16 px-4">
           <div className="flex items-baseline gap-1.5 text-3xl font-black tracking-tight">
             <span className="text-slate">Т</span>
@@ -252,11 +253,14 @@ function App() {
 
       {/* Tab rail */}
       {activeNav === "home" && (
-        <nav className="max-w-lg mx-auto flex border-b border-line bg-linen sticky top-16 z-30 relative">
+        <nav className="max-w-lg mx-auto flex border-b border-line bg-[#F4F1EA] sticky top-16 z-30 relative">
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                hapticImpact("light");
+                setActiveTab(tab.id);
+              }}
               className={`flex-1 flex items-center justify-center h-12 text-sm font-bold transition-colors duration-200 ${
                 activeTab === tab.id ? "text-coal" : "text-muted"
               }`}
@@ -264,12 +268,12 @@ function App() {
               {tab.label}
             </button>
           ))}
-          <div
-            className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-out"
-            style={{
-              width: `${100 / tabs.length}%`,
-              left: `${(tabs.findIndex((t) => t.id === activeTab) * 100) / tabs.length}%`,
-            }}
+          <motion.div
+            layoutId="tabIndicator"
+            className="absolute bottom-0 h-0.5 bg-accent"
+            style={{ width: `${100 / tabs.length}%` }}
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            animate={{ left: `${(tabs.findIndex((t) => t.id === activeTab) * 100) / tabs.length}%` }}
           />
         </nav>
       )}
@@ -303,7 +307,7 @@ function App() {
                     <button
                       key={folder.id}
                       onClick={() => setActiveFolderId(folder.id)}
-                      className="w-full bg-linen rounded-2xl p-4 text-left flex items-center gap-3 active:scale-[0.98] transition-all duration-200"
+                      className="w-full bg-white rounded-2xl p-4 text-left flex items-center gap-3 border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
                     >
                       <FolderOpen size={28} className="text-accent flex-shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -313,6 +317,7 @@ function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          hapticImpact("light");
                           handleDeleteFolder(folder.id);
                         }}
                         className="p-1 text-faint hover:text-red transition-colors duration-200"
@@ -450,7 +455,7 @@ function App() {
       )}
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-[0_-2px_12px_rgba(0,0,0,0.06)] bottom-nav-safe">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/75 backdrop-blur-lg border-t border-white/20 rounded-t-2xl bottom-nav-safe">
         <div className="max-w-lg mx-auto flex">
           {[
             { id: "home" as NavId, label: "Главная", icon: Home },
@@ -463,7 +468,10 @@ function App() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveNav(item.id)}
+                onClick={() => {
+                  hapticImpact("light");
+                  setActiveNav(item.id);
+                }}
                 className={`flex-1 flex flex-col items-center justify-center h-16 gap-0.5 text-xs font-semibold transition-colors duration-200 ${
                   isActive ? "text-green" : "text-muted"
                 }`}
@@ -527,6 +535,7 @@ function App() {
                 else if (activeTab === "batch_brew") await createBatchBrew(data as any);
                 else await createSignatureTtk(data as any);
               }
+              hapticSuccess();
               await loadAll();
               setIsCreating(false);
               setIsEditing(false);
@@ -555,6 +564,7 @@ function App() {
               } else {
                 await createItem(data as any);
               }
+              hapticSuccess();
               await loadAll();
               setIsCreatingItem(false);
               setIsEditingItem(false);
@@ -637,7 +647,7 @@ function BrewBarCard({
   return (
     <button
       onClick={() => onSelect(recipe)}
-      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+      className="w-full bg-white rounded-2xl p-4 text-left border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
@@ -685,7 +695,7 @@ function BatchBrewCard({
   return (
     <button
       onClick={() => onSelect(recipe)}
-      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+      className="w-full bg-white rounded-2xl p-4 text-left border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
@@ -722,7 +732,7 @@ function SignatureTtkCard({
   return (
     <button
       onClick={() => onSelect(ttk)}
-      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+      className="w-full bg-white rounded-2xl overflow-hidden text-left border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       {ttk.imageUrl && (
         <img
@@ -769,7 +779,7 @@ function PastryCard({
   return (
     <button
       onClick={() => onSelect(item)}
-      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+      className="w-full bg-white rounded-2xl overflow-hidden text-left border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       {item.imageUrl && (
         <img
@@ -819,7 +829,7 @@ function ChecklistCard({
   return (
     <button
       onClick={() => onSelect(item)}
-      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+      className="w-full bg-white rounded-2xl p-4 text-left border border-black/[0.03] shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
