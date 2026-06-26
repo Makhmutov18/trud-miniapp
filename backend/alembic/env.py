@@ -7,12 +7,18 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+from app.config import settings
 from app.database import Base
 from app.models import *  # noqa: F401, F403 — import all models for autogenerate
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override sqlalchemy.url with the value from TRUD_DATABASE_URL (via Pydantic settings)
+# This ensures Alembic uses the same database URL as the application,
+# whether running locally or on Railway.
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
