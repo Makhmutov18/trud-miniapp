@@ -101,3 +101,10 @@
 .bottom-nav-safe {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
+
+/* iOS auto-zoom fix: force 16px on inputs so Safari doesn't zoom on focus */
+@media screen and (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
