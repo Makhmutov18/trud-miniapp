@@ -1,19 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Coffee,
-  FlaskConical,
-  CupSoda,
+  Search,
   Home,
-  Bookmark,
-  User,
+  CupSoda,
+  ClipboardCheck,
+  BarChart3,
   Plus,
   Pencil,
   X,
-  ChevronRight,
   Clock,
   Droplets,
   Weight,
-  ImagePlus,
 } from "lucide-react";
 import {
   BrewBarRecipe,
@@ -21,6 +18,7 @@ import {
   SignatureTtk,
   BrewBarStep,
   Ingredient,
+  ItemResponse,
   fetchBrewBarRecipes,
   fetchBatchBrewRecipes,
   fetchSignatureTtks,
@@ -33,26 +31,42 @@ import {
   deleteBrewBar,
   deleteBatchBrew,
   deleteSignatureTtk,
+  fetchItems,
+  createItem,
+  updateItem,
+  deleteItem,
 } from "./api";
 import { bootTelegram } from "./telegram";
 
 type TabId = "brew_bar" | "batch_brew" | "signature_ttk";
+type NavId = "home" | "pastry" | "checklist" | "reports";
 
-const tabs: { id: TabId; label: string; icon: typeof Coffee }[] = [
-  { id: "brew_bar", label: "Воронки", icon: Coffee },
-  { id: "batch_brew", label: "Батч-брю", icon: FlaskConical },
-  { id: "signature_ttk", label: "Авторские", icon: CupSoda },
+const tabs: { id: TabId; label: string }[] = [
+  { id: "brew_bar", label: "Воронки" },
+  { id: "batch_brew", label: "Батч-брю" },
+  { id: "signature_ttk", label: "Авторские" },
 ];
 
+const categories = ["Все", "V60", "Switch", "Orea", "Infuse Coffee", "Классика"];
+
 function App() {
+  const [activeNav, setActiveNav] = useState<NavId>("home");
   const [activeTab, setActiveTab] = useState<TabId>("brew_bar");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Все");
+
   const [brewBarRecipes, setBrewBarRecipes] = useState<BrewBarRecipe[]>([]);
   const [batchBrewRecipes, setBatchBrewRecipes] = useState<BatchBrewRecipe[]>([]);
   const [signatureTtks, setSignatureTtks] = useState<SignatureTtk[]>([]);
+  const [pastryItems, setPastryItems] = useState<ItemResponse[]>([]);
+  const [checklistItems, setChecklistItems] = useState<ItemResponse[]>([]);
+
   const [selectedRecipe, setSelectedRecipe] = useState<BrewBarRecipe | BatchBrewRecipe | SignatureTtk | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ItemResponse | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [status, setStatus] = useState("Загрузка...");
+  const [isCreatingItem, setIsCreatingItem] = useState(false);
+  const [isEditingItem, setIsEditingItem] = useState(false);
 
   useEffect(() => {
     bootTelegram();
@@ -61,17 +75,20 @@ function App() {
 
   async function loadAll() {
     try {
-      const [brewBar, batchBrew, signature] = await Promise.all([
+      const [brewBar, batchBrew, signature, pastry, checklist] = await Promise.all([
         fetchBrewBarRecipes(),
         fetchBatchBrewRecipes(),
         fetchSignatureTtks(),
+        fetchItems("pastry"),
+        fetchItems("checklist"),
       ]);
       setBrewBarRecipes(brewBar);
       setBatchBrewRecipes(batchBrew);
       setSignatureTtks(signature);
-      setStatus("Синхронизировано");
+      setPastryItems(pastry);
+      setChecklistItems(checklist);
     } catch {
-      setStatus("Офлайн");
+      // silent fail
     }
   }
 
@@ -80,7 +97,13 @@ function App() {
     setIsEditing(true);
   }
 
+  function handleEditItem(item: ItemResponse) {
+    setSelectedItem(item);
+    setIsEditingItem(true);
+  }
+
   async function handleDelete(type: TabId, id: string) {
+    if (!confirm("Удалить рецепт?")) return;
     try {
       if (type === "brew_bar") await deleteBrewBar(id);
       else if (type === "batch_brew") await deleteBatchBrew(id);
@@ -91,6 +114,66 @@ function App() {
       alert("Не удалось удалить");
     }
   }
+
+  async function handleDeleteItem(id: string) {
+    if (!confirm("Удалить?")) return;
+    try {
+      await deleteItem(id);
+      await loadAll();
+      setSelectedItem(null);
+    } catch {
+      alert("Не удалось удалить");
+    }
+  }
+
+  // Filtering
+  const filteredBrewBar = brewBarRecipes.filter((r) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !r.lotName.toLowerCase().includes(q) && !r.roaster.toLowerCase().includes(q)) return false;
+    if (activeCategory !== "Все" && r.method.toUpperCase() !== activeCategory.toUpperCase() && activeCategory !== "Infuse Coffee") return false;
+    if (activeCategory === "Infuse Coffee" && r.method !== "switch") return false;
+    return true;
+  });
+
+  const filteredBatchBrew = batchBrewRecipes.filter((r) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !r.lotName.toLowerCase().includes(q) && !r.roaster.toLowerCase().includes(q)) return false;
+    if (activeCategory !== "Все" && activeCategory !== "Infuse Coffee" && activeCategory !== "Классика") return false;
+    return true;
+  });
+
+  const filteredSignature = signatureTtks.filter((r) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !r.drinkName.toLowerCase().includes(q)) return false;
+    if (activeCategory === "Infuse Coffee") return r.drinkName.toLowerCase().includes("infuse");
+    if (activeCategory === "Классика") return r.category === "hot";
+    return true;
+  });
+
+  const filteredPastry = pastryItems.filter((r) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !r.title.toLowerCase().includes(q) && !r.subtitle.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const filteredChecklist = checklistItems.filter((r) => {
+    const q = searchQuery.toLowerCase();
+    if (q && !r.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  // FAB logic
+  function handleFab() {
+    if (activeNav === "home") {
+      setIsCreating(true);
+    } else if (activeNav === "pastry") {
+      setIsCreatingItem(true);
+    } else if (activeNav === "checklist") {
+      setIsCreatingItem(true);
+    }
+  }
+
+  const showFab = activeNav !== "reports";
 
   return (
     <div className="min-h-dvh bg-linen text-coal">
@@ -106,41 +189,74 @@ function App() {
         </div>
       </header>
 
-      {/* Status bar */}
-      <div className="max-w-lg mx-auto px-4 py-2 text-xs text-muted font-semibold uppercase tracking-wider flex justify-between">
-        <span>{status}</span>
-        <span>Бар · ТРУД</span>
+      {/* Search */}
+      <div className="max-w-lg mx-auto px-4 pt-3">
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Найти рецепт или ТТК..."
+            className="w-full bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm shadow-sm placeholder:text-faint transition-all duration-200"
+          />
+        </div>
       </div>
 
+      {/* Categories */}
+      {activeNav === "home" && (
+        <div className="max-w-lg mx-auto px-4 pt-3 overflow-x-auto hide-scrollbar">
+          <div className="flex gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
+                  activeCategory === cat
+                    ? "bg-coal text-white"
+                    : "bg-white text-muted hover:bg-line"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tab rail */}
-      <nav className="max-w-lg mx-auto flex border-b border-line bg-linen sticky top-16 z-30">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
+      {activeNav === "home" && (
+        <nav className="max-w-lg mx-auto flex border-b border-line bg-linen sticky top-16 z-30 relative">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 h-12 text-sm font-bold transition-colors ${
-                activeTab === tab.id
-                  ? "text-coal border-b-2 border-accent"
-                  : "text-muted"
+              className={`flex-1 flex items-center justify-center h-12 text-sm font-bold transition-colors duration-200 ${
+                activeTab === tab.id ? "text-coal" : "text-muted"
               }`}
             >
-              <Icon size={18} />
-              <span>{tab.label}</span>
+              {tab.label}
             </button>
-          );
-        })}
-      </nav>
+          ))}
+          {/* Smooth indicator */}
+          <div
+            className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-out"
+            style={{
+              width: `${100 / tabs.length}%`,
+              left: `${(tabs.findIndex((t) => t.id === activeTab) * 100) / tabs.length}%`,
+            }}
+          />
+        </nav>
+      )}
 
       {/* Content */}
       <main className="max-w-lg mx-auto pb-24 px-4 pt-4 space-y-3">
-        {activeTab === "brew_bar" && (
+        {activeNav === "home" && activeTab === "brew_bar" && (
           <>
-            {brewBarRecipes.length === 0 && (
+            {filteredBrewBar.length === 0 && (
               <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
             )}
-            {brewBarRecipes.map((recipe) => (
+            {filteredBrewBar.map((recipe) => (
               <BrewBarCard
                 key={recipe.id}
                 recipe={recipe}
@@ -151,12 +267,12 @@ function App() {
           </>
         )}
 
-        {activeTab === "batch_brew" && (
+        {activeNav === "home" && activeTab === "batch_brew" && (
           <>
-            {batchBrewRecipes.length === 0 && (
+            {filteredBatchBrew.length === 0 && (
               <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
             )}
-            {batchBrewRecipes.map((recipe) => (
+            {filteredBatchBrew.map((recipe) => (
               <BatchBrewCard
                 key={recipe.id}
                 recipe={recipe}
@@ -167,12 +283,12 @@ function App() {
           </>
         )}
 
-        {activeTab === "signature_ttk" && (
+        {activeNav === "home" && activeTab === "signature_ttk" && (
           <>
-            {signatureTtks.length === 0 && (
+            {filteredSignature.length === 0 && (
               <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
             )}
-            {signatureTtks.map((ttk) => (
+            {filteredSignature.map((ttk) => (
               <SignatureTtkCard
                 key={ttk.id}
                 ttk={ttk}
@@ -182,30 +298,77 @@ function App() {
             ))}
           </>
         )}
+
+        {activeNav === "pastry" && (
+          <>
+            {filteredPastry.length === 0 && (
+              <p className="text-center text-muted py-12 text-sm">Нет выпечки</p>
+            )}
+            {filteredPastry.map((item) => (
+              <PastryCard
+                key={item.id}
+                item={item}
+                onSelect={setSelectedItem}
+                onEdit={() => handleEditItem(item)}
+              />
+            ))}
+          </>
+        )}
+
+        {activeNav === "checklist" && (
+          <>
+            {filteredChecklist.length === 0 && (
+              <p className="text-center text-muted py-12 text-sm">Нет чек-листов</p>
+            )}
+            {filteredChecklist.map((item) => (
+              <ChecklistCard
+                key={item.id}
+                item={item}
+                onSelect={setSelectedItem}
+                onEdit={() => handleEditItem(item)}
+              />
+            ))}
+          </>
+        )}
+
+        {activeNav === "reports" && (
+          <div className="text-center py-20">
+            <BarChart3 size={48} className="mx-auto text-faint mb-4" />
+            <p className="text-muted font-semibold">Раздел в разработке</p>
+            <p className="text-faint text-sm mt-1">Скоро здесь появятся отчёты</p>
+          </div>
+        )}
       </main>
 
       {/* FAB */}
-      <button
-        onClick={() => setIsCreating(true)}
-        className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        aria-label="Добавить"
-      >
-        <Plus size={28} />
-      </button>
+      {showFab && (
+        <button
+          onClick={handleFab}
+          className="fixed bottom-24 right-6 z-50 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-all duration-200"
+          aria-label="Добавить"
+        >
+          <Plus size={28} />
+        </button>
+      )}
 
       {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-[0_-2px_12px_rgba(0,0,0,0.06)] bottom-nav-safe">
         <div className="max-w-lg mx-auto flex">
           {[
-            { id: "home", label: "Главная", icon: Home },
-            { id: "favorites", label: "Избранное", icon: Bookmark },
-            { id: "profile", label: "Профиль", icon: User },
+            { id: "home" as NavId, label: "Главная", icon: Home },
+            { id: "pastry" as NavId, label: "Кондитерка", icon: CupSoda },
+            { id: "checklist" as NavId, label: "Чек-листы", icon: ClipboardCheck },
+            { id: "reports" as NavId, label: "Отчеты", icon: BarChart3 },
           ].map((item) => {
             const Icon = item.icon;
+            const isActive = activeNav === item.id;
             return (
               <button
                 key={item.id}
-                className="flex-1 flex flex-col items-center justify-center h-16 gap-0.5 text-muted text-xs font-semibold"
+                onClick={() => setActiveNav(item.id)}
+                className={`flex-1 flex flex-col items-center justify-center h-16 gap-0.5 text-xs font-semibold transition-colors duration-200 ${
+                  isActive ? "text-green" : "text-muted"
+                }`}
               >
                 <Icon size={22} />
                 <span>{item.label}</span>
@@ -226,7 +389,17 @@ function App() {
         />
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Item Detail Modal */}
+      {selectedItem && !isEditingItem && (
+        <ItemDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onEdit={() => setIsEditingItem(true)}
+          onDelete={() => handleDeleteItem(selectedItem.id)}
+        />
+      )}
+
+      {/* Create/Edit Recipe Modal */}
       {(isCreating || isEditing) && (
         <RecipeFormModal
           type={activeTab}
@@ -257,6 +430,34 @@ function App() {
           }}
         />
       )}
+
+      {/* Create/Edit Item Modal */}
+      {(isCreatingItem || isEditingItem) && (
+        <ItemFormModal
+          category={activeNav === "pastry" ? "pastry" : "checklist"}
+          initial={isEditingItem ? selectedItem : null}
+          onClose={() => {
+            setIsCreatingItem(false);
+            setIsEditingItem(false);
+            setSelectedItem(null);
+          }}
+          onSave={async (data) => {
+            try {
+              if (isEditingItem && selectedItem) {
+                await updateItem(selectedItem.id, data as any);
+              } else {
+                await createItem(data as any);
+              }
+              await loadAll();
+              setIsCreatingItem(false);
+              setIsEditingItem(false);
+              setSelectedItem(null);
+            } catch {
+              alert("Ошибка сохранения");
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -274,7 +475,7 @@ function BrewBarCard({
   return (
     <button
       onClick={() => onSelect(recipe)}
-      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-transform"
+      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
@@ -285,7 +486,7 @@ function BrewBarCard({
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0 transition-colors duration-200"
           aria-label="Редактировать"
         >
           <Pencil size={16} />
@@ -319,7 +520,7 @@ function BatchBrewCard({
   return (
     <button
       onClick={() => onSelect(recipe)}
-      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-transform"
+      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
@@ -328,7 +529,7 @@ function BatchBrewCard({
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0 transition-colors duration-200"
           aria-label="Редактировать"
         >
           <Pencil size={16} />
@@ -356,13 +557,13 @@ function SignatureTtkCard({
   return (
     <button
       onClick={() => onSelect(ttk)}
-      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-transform"
+      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-all duration-200"
     >
       {ttk.imageUrl && (
         <img
           src={ttk.imageUrl}
           alt=""
-          className="w-full h-40 object-cover"
+          className="w-full h-40 object-cover rounded-t-2xl"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
       )}
@@ -376,16 +577,104 @@ function SignatureTtkCard({
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+            className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0 transition-colors duration-200"
             aria-label="Редактировать"
           >
             <Pencil size={16} />
           </button>
         </div>
         <div className="mt-3 text-sm text-muted">
-          {ttk.ingredients.length} ингредиентов · {ttk.serviceSteps.length} шагов
+          {ttk.ingredients.length} ингредиентов · Посуда: {ttk.vessel}
         </div>
       </div>
+    </button>
+  );
+}
+
+// === Pastry Card ===
+function PastryCard({
+  item,
+  onSelect,
+  onEdit,
+}: {
+  item: ItemResponse;
+  onSelect: (r: ItemResponse) => void;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(item)}
+      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+    >
+      {item.imageUrl && (
+        <img
+          src={item.imageUrl}
+          alt=""
+          className="w-full h-40 object-cover rounded-t-2xl"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-lg text-coal">{item.title}</h3>
+            {item.subtitle && <p className="text-sm text-muted mt-0.5">{item.subtitle}</p>}
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0 transition-colors duration-200"
+            aria-label="Редактировать"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+        {item.price != null && (
+          <div className="mt-2">
+            <span className="text-lg font-bold text-coal">{item.price} ₽</span>
+          </div>
+        )}
+        {item.description && (
+          <p className="mt-1 text-sm text-muted line-clamp-2">{item.description}</p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// === Checklist Card ===
+function ChecklistCard({
+  item,
+  onSelect,
+  onEdit,
+}: {
+  item: ItemResponse;
+  onSelect: (r: ItemResponse) => void;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(item)}
+      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-all duration-200"
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-lg text-coal">{item.title}</h3>
+          {item.subtitle && <p className="text-sm text-muted mt-0.5">{item.subtitle}</p>}
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0 transition-colors duration-200"
+          aria-label="Редактировать"
+        >
+          <Pencil size={16} />
+        </button>
+      </div>
+      {item.description && (
+        <p className="mt-2 text-sm text-muted">{item.description}</p>
+      )}
+      {item.steps.length > 0 && (
+        <p className="mt-2 text-xs text-muted">{item.steps.length} пунктов</p>
+      )}
     </button>
   );
 }
@@ -405,21 +694,20 @@ function DetailModal({
   onDelete: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-end justify-center" onClick={onClose}>
       <div
         className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
-          <button onClick={onClose} className="p-2 text-muted" aria-label="Закрыть">
+          <button onClick={onClose} className="p-2 text-muted transition-colors duration-200" aria-label="Закрыть">
             <X size={22} />
           </button>
           <div className="flex gap-2">
-            <button onClick={onEdit} className="p-2 text-accent" aria-label="Редактировать">
+            <button onClick={onEdit} className="p-2 text-accent transition-colors duration-200" aria-label="Редактировать">
               <Pencil size={20} />
             </button>
-            <button onClick={onDelete} className="p-2 text-red" aria-label="Удалить">
+            <button onClick={onDelete} className="p-2 text-red transition-colors duration-200" aria-label="Удалить">
               <X size={20} />
             </button>
           </div>
@@ -445,7 +733,6 @@ function BrewBarDetail({ recipe }: { recipe: BrewBarRecipe }) {
         <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.waterVolumeMl} мл воды</span>
       </div>
 
-      {/* Timeline */}
       <div className="mt-6">
         <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Таймлайн</h3>
         <div className="flex items-center gap-2 mb-4">
@@ -464,7 +751,6 @@ function BrewBarDetail({ recipe }: { recipe: BrewBarRecipe }) {
           ))}
         </div>
 
-        {/* Steps table */}
         <div className="bg-linen rounded-xl p-3">
           <div className="step-row font-bold text-xs text-muted uppercase">
             <span>Step</span>
@@ -544,7 +830,6 @@ function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
         {ttk.category === "hot" ? "Горячий" : "Холодный"} · {ttk.servingVolumeMl} мл · {ttk.vessel}
       </p>
 
-      {/* Ingredients */}
       <div className="mt-6">
         <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Ингредиенты</h3>
         <div className="bg-linen rounded-xl p-3">
@@ -557,7 +842,6 @@ function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
         </div>
       </div>
 
-      {/* Service steps */}
       {ttk.serviceSteps.length > 0 && (
         <div className="mt-6">
           <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Приготовление</h3>
@@ -589,6 +873,86 @@ function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
       {ttk.notes && (
         <p className="mt-4 text-sm text-muted italic">{ttk.notes}</p>
       )}
+    </div>
+  );
+}
+
+// === Item Detail Modal ===
+function ItemDetailModal({
+  item,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  item: ItemResponse;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-end justify-center" onClick={onClose}>
+      <div
+        className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
+          <button onClick={onClose} className="p-2 text-muted transition-colors duration-200" aria-label="Закрыть">
+            <X size={22} />
+          </button>
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="p-2 text-accent transition-colors duration-200" aria-label="Редактировать">
+              <Pencil size={20} />
+            </button>
+            <button onClick={onDelete} className="p-2 text-red transition-colors duration-200" aria-label="Удалить">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {item.imageUrl && (
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="w-full h-48 object-cover rounded-xl mb-4"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
+          <h2 className="text-2xl font-black text-coal">{item.title}</h2>
+          {item.subtitle && <p className="text-muted text-sm mt-1">{item.subtitle}</p>}
+          {item.price != null && (
+            <p className="text-lg font-bold text-coal mt-2">{item.price} ₽</p>
+          )}
+          {item.description && (
+            <p className="mt-3 text-sm text-muted">{item.description}</p>
+          )}
+
+          {item.specs.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {item.specs.map((spec, i) => (
+                <div key={i} className="bg-linen rounded-xl p-3">
+                  <span className="text-xs text-muted uppercase font-bold">{spec.label}</span>
+                  <p className="font-semibold mt-1">{spec.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {item.steps.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-2">Шаги</h3>
+              <ol className="space-y-2">
+                {item.steps.map((step, i) => (
+                  <li key={i} className="flex gap-3 text-sm">
+                    <span className="font-bold text-accent flex-shrink-0 w-5">{i + 1}.</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -627,18 +991,79 @@ function RecipeFormModal({
   const [category, setCategory] = useState(initial?.category ?? "hot");
   const [servingVolumeMl, setServingVolumeMl] = useState(initial?.servingVolumeMl ?? 240);
   const [vessel, setVessel] = useState(initial?.vessel ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [ingredientText, setIngredientText] = useState(
-    initial?.ingredients?.map((i: Ingredient) => `${i.ingredientName}: ${i.exactAmount}`).join("\n") ?? ""
+  const [photoBase64, setPhotoBase64] = useState("");
+  const [photoPreview, setPhotoPreview] = useState(initial?.imageUrl ?? "");
+
+  // Dynamic ingredients (reverse mapping from backend)
+  const [ingredients, setIngredients] = useState<{ name: string; amount: string }[]>(
+    initial?.ingredients?.map((i: Ingredient) => ({ name: i.ingredientName, amount: i.exactAmount })) ?? []
   );
-  const [serviceStepText, setServiceStepText] = useState(
-    initial?.serviceSteps?.join("\n") ?? ""
-  );
+
+  // Dynamic service steps (reverse mapping from backend)
+  const [serviceSteps, setServiceSteps] = useState<string[]>(initial?.serviceSteps ?? []);
+
   const [allergens, setAllergens] = useState(initial?.allergensAndComposition ?? "");
   const [storage, setStorage] = useState(initial?.storageConditions ?? "");
 
   // Brew Bar steps
   const [steps, setSteps] = useState<BrewBarStep[]>(initial?.steps ?? []);
+
+  // Photo upload with Canvas compression
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    await new Promise((resolve) => { img.onload = resolve; });
+
+    const MAX_WIDTH = 1000;
+    let { width, height } = img;
+    if (width > MAX_WIDTH) {
+      height = Math.round((height * MAX_WIDTH) / width);
+      width = MAX_WIDTH;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+
+    setPhotoBase64(dataUrl);
+    setPhotoPreview(dataUrl);
+    URL.revokeObjectURL(url);
+  }
+
+  function addIngredient() {
+    setIngredients([...ingredients, { name: "", amount: "" }]);
+  }
+
+  function updateIngredient(i: number, field: "name" | "amount", value: string) {
+    const updated = [...ingredients];
+    updated[i][field] = value;
+    setIngredients(updated);
+  }
+
+  function removeIngredient(i: number) {
+    setIngredients(ingredients.filter((_, idx) => idx !== i));
+  }
+
+  function addServiceStep() {
+    setServiceSteps([...serviceSteps, ""]);
+  }
+
+  function updateServiceStep(i: number, value: string) {
+    const updated = [...serviceSteps];
+    updated[i] = value;
+    setServiceSteps(updated);
+  }
+
+  function removeServiceStep(i: number) {
+    setServiceSteps(serviceSteps.filter((_, idx) => idx !== i));
+  }
 
   function addStep() {
     setSteps([...steps, { startTime: "0:00", stageName: "", pourVolumeMl: 0, targetWeightG: 0 }]);
@@ -669,17 +1094,15 @@ function RecipeFormModal({
           ratio, waterVolumeMl, brewerProgram, notes,
         });
       } else {
-        const ingredients = ingredientText
-          .split("\n")
-          .filter(Boolean)
-          .map((line: string) => {
-            const [name, amount] = line.split(":").map((s: string) => s.trim());
-            return { ingredientName: name, exactAmount: amount };
-          });
-        const serviceSteps = serviceStepText.split("\n").filter(Boolean);
+        const mappedIngredients = ingredients
+          .filter((ing) => ing.name && ing.amount)
+          .map((ing) => ({ ingredientName: ing.name, exactAmount: ing.amount }));
+        const mappedSteps = serviceSteps.filter(Boolean);
         await onSave({
-          drinkName, category, servingVolumeMl, vessel, imageUrl,
-          ingredients, serviceSteps,
+          drinkName, category, servingVolumeMl, vessel,
+          imageUrl: photoBase64 || initial?.imageUrl || "",
+          ingredients: mappedIngredients,
+          serviceSteps: mappedSteps,
           allergensAndComposition: allergens,
           storageConditions: storage,
           notes,
@@ -691,14 +1114,14 @@ function RecipeFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-end justify-center" onClick={onClose}>
       <form
         className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
       >
         <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
-          <button type="button" onClick={onClose} className="p-2 text-muted">
+          <button type="button" onClick={onClose} className="p-2 text-muted transition-colors duration-200">
             <X size={22} />
           </button>
           <h2 className="font-bold text-lg">
@@ -730,7 +1153,95 @@ function RecipeFormModal({
               />
               <Field label="Объем подачи (мл)" type="number" value={servingVolumeMl} onChange={setServingVolumeMl} />
               <Field label="Посуда" value={vessel} onChange={setVessel} />
-              <Field label="URL фото" value={imageUrl} onChange={setImageUrl} placeholder="https://..." />
+
+              {/* Photo upload */}
+              <div>
+                <span className="text-xs font-bold text-muted uppercase block mb-1">Фото подачи</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="photo-upload"
+                  onChange={handlePhotoUpload}
+                />
+                <label
+                  htmlFor="photo-upload"
+                  className="block cursor-pointer"
+                >
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt=""
+                      className="w-full h-40 object-cover rounded-xl"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
+                      Нажмите, чтобы загрузить фото подачи
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Dynamic ingredients */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-muted uppercase">Ингредиенты</span>
+                </div>
+                {ingredients.map((ing, i) => (
+                  <div key={i} className="flex gap-2 items-center mb-2">
+                    <input
+                      className="flex-1 px-3 py-2 bg-linen rounded-xl text-sm"
+                      placeholder="Название"
+                      value={ing.name}
+                      onChange={(e) => updateIngredient(i, "name", e.target.value)}
+                    />
+                    <input
+                      className="w-24 px-3 py-2 bg-linen rounded-xl text-sm text-right"
+                      placeholder="г/мл"
+                      value={ing.amount}
+                      onChange={(e) => updateIngredient(i, "amount", e.target.value)}
+                    />
+                    <button type="button" onClick={() => removeIngredient(i)} className="p-2 text-red flex-shrink-0">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addIngredient}
+                  className="w-full bg-linen rounded-xl py-2 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-line"
+                >
+                  + Добавить ингредиент
+                </button>
+              </div>
+
+              {/* Dynamic service steps */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-muted uppercase">Технология</span>
+                </div>
+                {serviceSteps.map((step, i) => (
+                  <div key={i} className="flex gap-2 items-center mb-2">
+                    <span className="font-bold text-accent w-6 text-sm flex-shrink-0">{i + 1}.</span>
+                    <input
+                      className="flex-1 px-3 py-2 bg-linen rounded-xl text-sm"
+                      placeholder="Шаг технологии"
+                      value={step}
+                      onChange={(e) => updateServiceStep(i, e.target.value)}
+                    />
+                    <button type="button" onClick={() => removeServiceStep(i)} className="p-2 text-red flex-shrink-0">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addServiceStep}
+                  className="w-full bg-linen rounded-xl py-2 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-line"
+                >
+                  + Добавить шаг технологии
+                </button>
+              </div>
             </>
           )}
 
@@ -752,47 +1263,67 @@ function RecipeFormModal({
                 <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
               </div>
 
-              {/* Steps editor */}
+              {/* Steps editor — redesigned cards */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-muted uppercase">Шаги заваривания</span>
-                  <button type="button" onClick={addStep} className="text-xs text-accent font-bold">
-                    + Добавить шаг
-                  </button>
                 </div>
                 {steps.map((step, i) => (
-                  <div key={i} className="flex gap-2 items-center mb-2">
-                    <input
-                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
-                      placeholder="0:00"
-                      value={step.startTime}
-                      onChange={(e) => updateStep(i, "startTime", e.target.value)}
-                    />
-                    <input
-                      className="flex-1 px-2 py-1.5 bg-linen rounded-lg text-sm"
-                      placeholder="Bloom"
-                      value={step.stageName}
-                      onChange={(e) => updateStep(i, "stageName", e.target.value)}
-                    />
-                    <input
-                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
-                      placeholder="мл"
-                      type="number"
-                      value={step.pourVolumeMl || ""}
-                      onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
-                    />
-                    <input
-                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
-                      placeholder="г"
-                      type="number"
-                      value={step.targetWeightG || ""}
-                      onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
-                    />
-                    <button type="button" onClick={() => removeStep(i)} className="p-1 text-red">
-                      <X size={16} />
+                  <div key={i} className="bg-linen rounded-xl p-3 mb-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs text-muted block mb-0.5">Время</span>
+                        <input
+                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
+                          placeholder="0:00"
+                          value={step.startTime}
+                          onChange={(e) => updateStep(i, "startTime", e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted block mb-0.5">Название стадии</span>
+                        <input
+                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm"
+                          placeholder="Bloom, Pour 1, Pour 2"
+                          value={step.stageName}
+                          onChange={(e) => updateStep(i, "stageName", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs text-muted block mb-0.5">Вода (мл)</span>
+                        <input
+                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
+                          placeholder="мл"
+                          type="number"
+                          value={step.pourVolumeMl || ""}
+                          onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted block mb-0.5">Общий вес (г)</span>
+                        <input
+                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
+                          placeholder="г"
+                          type="number"
+                          value={step.targetWeightG || ""}
+                          onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => removeStep(i)} className="text-xs text-red font-semibold">
+                      Удалить шаг
                     </button>
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className="w-full bg-white border-2 border-dashed border-line rounded-xl py-3 text-accent font-semibold text-sm transition-colors duration-200 hover:border-accent"
+                >
+                  + Добавить шаг заваривания
+                </button>
               </div>
             </>
           )}
@@ -811,24 +1342,6 @@ function RecipeFormModal({
 
           {type === "signature_ttk" && (
             <>
-              <div>
-                <label className="text-xs font-bold text-muted uppercase block mb-1">Ингредиенты (название: граммовка)</label>
-                <textarea
-                  className="w-full px-3 py-2 bg-linen rounded-xl text-sm min-h-[80px] resize-none"
-                  value={ingredientText}
-                  onChange={(e) => setIngredientText(e.target.value)}
-                  placeholder="Двойной эспрессо: 34 г&#10;Indian Tonic: 200 г"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-muted uppercase block mb-1">Технология (по пунктам)</label>
-                <textarea
-                  className="w-full px-3 py-2 bg-linen rounded-xl text-sm min-h-[80px] resize-none"
-                  value={serviceStepText}
-                  onChange={(e) => setServiceStepText(e.target.value)}
-                  placeholder="1. Наполнить стакан льдом&#10;2. Влить тоник по стенке"
-                />
-              </div>
               <Field label="Состав и аллергены" value={allergens} onChange={setAllergens} />
               <Field label="Условия хранения" value={storage} onChange={setStorage} />
             </>
@@ -839,10 +1352,154 @@ function RecipeFormModal({
           <button
             type="submit"
             disabled={saving}
-            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50"
+            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all duration-200 active:scale-[0.98]"
           >
             {saving ? "Сохранение..." : initial ? "Сохранить изменения" : "Создать"}
           </button>
+
+          {/* Delete button in edit mode */}
+          {initial && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("Удалить рецепт?")) {
+                  onClose();
+                  // Parent handles deletion via the modal's onDelete
+                }
+              }}
+              className="w-full h-12 bg-red/10 text-red rounded-xl font-bold text-base transition-all duration-200 active:scale-[0.98]"
+            >
+              Удалить рецепт
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// === Item Form Modal ===
+function ItemFormModal({
+  category,
+  initial,
+  onClose,
+  onSave,
+}: {
+  category: string;
+  initial: any | null;
+  onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [subtitle, setSubtitle] = useState(initial?.subtitle ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [price, setPrice] = useState<number | null>(initial?.price ?? null);
+  const [photoBase64, setPhotoBase64] = useState("");
+  const [photoPreview, setPhotoPreview] = useState(initial?.imageUrl ?? "");
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    await new Promise((resolve) => { img.onload = resolve; });
+    const MAX_WIDTH = 1000;
+    let { width, height } = img;
+    if (width > MAX_WIDTH) {
+      height = Math.round((height * MAX_WIDTH) / width);
+      width = MAX_WIDTH;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, width, height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+    setPhotoBase64(dataUrl);
+    setPhotoPreview(dataUrl);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        category,
+        title,
+        subtitle,
+        description,
+        price: category === "pastry" ? price : null,
+        imageUrl: photoBase64 || initial?.imageUrl || "",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-end justify-center" onClick={onClose}>
+      <form
+        className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
+          <button type="button" onClick={onClose} className="p-2 text-muted transition-colors duration-200">
+            <X size={22} />
+          </button>
+          <h2 className="font-bold text-lg">
+            {initial ? "Редактировать" : category === "pastry" ? "Новая позиция" : "Новый чек-лист"}
+          </h2>
+          <div className="w-10" />
+        </div>
+
+        <div className="p-4 space-y-4">
+          <Field label="Название" value={title} onChange={setTitle} required />
+          <Field label="Подзаголовок" value={subtitle} onChange={setSubtitle} />
+          <Field label="Описание" value={description} onChange={setDescription} />
+          {category === "pastry" && (
+            <Field label="Цена (₽)" type="number" value={price ?? ""} onChange={(v) => setPrice(v === "" ? null : Number(v))} />
+          )}
+
+          {/* Photo upload */}
+          <div>
+            <span className="text-xs font-bold text-muted uppercase block mb-1">Фото</span>
+            <input type="file" accept="image/*" className="hidden" id="item-photo-upload" onChange={handlePhotoUpload} />
+            <label htmlFor="item-photo-upload" className="block cursor-pointer">
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="w-full h-40 object-cover rounded-xl" />
+              ) : (
+                <div className="w-full h-32 bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
+                  Нажмите, чтобы загрузить фото
+                </div>
+              )}
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all duration-200 active:scale-[0.98]"
+          >
+            {saving ? "Сохранение..." : initial ? "Сохранить изменения" : "Создать"}
+          </button>
+
+          {initial && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("Удалить?")) {
+                  onClose();
+                }
+              }}
+              className="w-full h-12 bg-red/10 text-red rounded-xl font-bold text-base transition-all duration-200 active:scale-[0.98]"
+            >
+              Удалить
+            </button>
+          )}
         </div>
       </form>
     </div>
@@ -874,7 +1531,7 @@ function Field({
         onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="w-full px-3 py-2 bg-linen rounded-xl text-sm"
+        className="w-full px-3 py-2 bg-linen rounded-xl text-sm transition-all duration-200"
       />
     </label>
   );
@@ -897,7 +1554,7 @@ function Select({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-linen rounded-xl text-sm appearance-none"
+        className="w-full px-3 py-2 bg-linen rounded-xl text-sm appearance-none transition-all duration-200"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>

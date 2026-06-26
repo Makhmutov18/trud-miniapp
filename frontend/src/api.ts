@@ -67,6 +67,44 @@ export type RecipesByType = {
   signatureTtk: SignatureTtk[];
 };
 
+// === Items (pastry, checklist) ===
+
+export type ItemSpec = {
+  label: string;
+  value: string;
+};
+
+export type ItemResponse = {
+  id: string;
+  category: string;
+  subcategory: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  price: number | null;
+  imageUrl: string;
+  specs: ItemSpec[];
+  steps: string[];
+  tags: string[];
+  isFavorite: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ItemCreatePayload = {
+  category: string;
+  subcategory?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  price?: number | null;
+  imageUrl?: string;
+  specs?: ItemSpec[];
+  steps?: string[];
+  tags?: string[];
+  isFavorite?: boolean;
+};
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 // === Brew Bar ===
@@ -203,4 +241,36 @@ export async function fetchAllRecipes(): Promise<RecipesByType> {
   const response = await fetch(`${API_BASE}/api/recipes`);
   if (!response.ok) throw new Error("Не удалось загрузить рецепты");
   return response.json();
+}
+
+// === Items (pastry, checklist) ===
+
+export async function fetchItems(category: string): Promise<ItemResponse[]> {
+  const response = await fetch(`${API_BASE}/api/items?category=${category}`);
+  if (!response.ok) throw new Error("Не удалось загрузить");
+  return response.json();
+}
+
+export async function createItem(payload: ItemCreatePayload): Promise<ItemResponse> {
+  const response = await fetch(`${API_BASE}/api/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Не удалось создать");
+  return response.json();
+}
+
+export async function updateItem(itemId: string, payload: Partial<ItemCreatePayload>): Promise<ItemResponse> {
+  const response = await fetch(`${API_BASE}/api/items/${itemId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Не удалось обновить");
+  return response.json();
+}
+
+export async function deleteItem(itemId: string): Promise<void> {
+  await fetch(`${API_BASE}/api/items/${itemId}`, { method: "DELETE" });
 }
