@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Home,
@@ -11,6 +11,9 @@ import {
   Clock,
   Droplets,
   Weight,
+  Folder,
+  FolderOpen,
+  ArrowLeft,
 } from "lucide-react";
 import {
   BrewBarRecipe,
@@ -19,6 +22,8 @@ import {
   BrewBarStep,
   Ingredient,
   ItemResponse,
+  RecipeFolder,
+  TabId,
   fetchBrewBarRecipes,
   fetchBatchBrewRecipes,
   fetchSignatureTtks,
@@ -38,7 +43,6 @@ import {
 } from "./api";
 import { bootTelegram } from "./telegram";
 
-type TabId = "brew_bar" | "batch_brew" | "signature_ttk";
 type NavId = "home" | "pastry" | "checklist" | "reports";
 
 const tabs: { id: TabId; label: string }[] = [
@@ -47,13 +51,27 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "signature_ttk", label: "Авторские" },
 ];
 
-const categories = ["Все", "V60", "Switch", "Orea", "Infuse Coffee", "Классика"];
+const FOLDERS_KEY = "trud_folders";
+
+function loadFolders(): RecipeFolder[] {
+  try {
+    const raw = localStorage.getItem(FOLDERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFolders(folders: RecipeFolder[]) {
+  localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+}
 
 function App() {
   const [activeNav, setActiveNav] = useState<NavId>("home");
   const [activeTab, setActiveTab] = useState<TabId>("brew_bar");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Все");
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<RecipeFolder[]>(loadFolders);
 
   const [brewBarRecipes, setBrewBarRecipes] = useState<BrewBarRecipe[]>([]);
   const [batchBrewRecipes, setBatchBrewRecipes] = useState<BatchBrewRecipe[]>([]);
@@ -67,11 +85,21 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [isEditingItem, setIsEditingItem] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
   useEffect(() => {
     bootTelegram();
     loadAll();
   }, []);
+
+  useEffect(() => {
+    saveFolders(folders);
+  }, [folders]);
+
+  // Reset folder when switching tabs
+  useEffect(() => {
+    setActiveFolderId(null);
+  }, [activeTab]);
 
   async function loadAll() {
     try {
@@ -126,41 +154,57 @@ function App() {
     }
   }
 
+  function handleCreateFolder(name: string) {
+    const folder: RecipeFolder = {
+      id: crypto.randomUUID(),
+      name,
+      tab: activeTab,
+    };
+    setFolders([...folders, folder]);
+    setIsCreatingFolder(false);
+  }
+
+  function handleDeleteFolder(id: string) {
+    if (!confirm("Удалить папку? Рецепты останутся в корне.")) return;
+    setFolders(folders.filter((f) => f.id !== id));
+    if (activeFolderId === id) setActiveFolderId(null);
+  }
+
+  // Folders for current tab
+  const currentFolders = folders.filter((f) => f.tab === activeTab);
+
   // Filtering
-  const filteredBrewBar = brewBarRecipes.filter((r) => {
+  function filterBySearch<T extends { lotName?: string; roaster?: string; drinkName?: string; title?: string; subtitle?: string }>(
+    items: T[],
+    fields: (keyof T)[]
+  ): T[] {
     const q = searchQuery.toLowerCase();
-    if (q && !r.lotName.toLowerCase().includes(q) && !r.roaster.toLowerCase().includes(q)) return false;
-    if (activeCategory !== "Все" && r.method.toUpperCase() !== activeCategory.toUpperCase() && activeCategory !== "Infuse Coffee") return false;
-    if (activeCategory === "Infuse Coffee" && r.method !== "switch") return false;
-    return true;
-  });
+    if (!q) return items;
+    return items.filter((item) =>
+      fields.some((field) => {
+        const val = item[field];
+        return typeof val === "string" && val.toLowerCase().includes(q);
+      })
+    );
+  }
 
-  const filteredBatchBrew = batchBrewRecipes.filter((r) => {
-    const q = searchQuery.toLowerCase();
-    if (q && !r.lotName.toLowerCase().includes(q) && !r.roaster.toLowerCase().includes(q)) return false;
-    if (activeCategory !== "Все" && activeCategory !== "Infuse Coffee" && activeCategory !== "Классика") return false;
-    return true;
-  });
+  const filteredBrewBar = filterBySearch(
+    brewBarRecipes.filter((r) => r.folderId === activeFolderId),
+    ["lotName", "roaster"]
+  );
 
-  const filteredSignature = signatureTtks.filter((r) => {
-    const q = searchQuery.toLowerCase();
-    if (q && !r.drinkName.toLowerCase().includes(q)) return false;
-    if (activeCategory === "Infuse Coffee") return r.drinkName.toLowerCase().includes("infuse");
-    if (activeCategory === "Классика") return r.category === "hot";
-    return true;
-  });
+  const filteredBatchBrew = filterBySearch(
+    batchBrewRecipes.filter((r) => r.folderId === activeFolderId),
+    ["lotName", "roaster"]
+  );
 
-  const filteredPastry = pastryItems.filter((r) => {
-    const q = searchQuery.toLowerCase();
-    if (q && !r.title.toLowerCase().includes(q) && !r.subtitle.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const filteredSignature = filterBySearch(
+    signatureTtks.filter((r) => r.folderId === activeFolderId),
+    ["drinkName"]
+  );
 
-  const filteredChecklist = checklistItems.filter((r) => {
-    const q = searchQuery.toLowerCase();
-    if (q && !r.title.toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const filteredPastry = filterBySearch(pastryItems, ["title", "subtitle"]);
+  const filteredChecklist = filterBySearch(checklistItems, ["title"]);
 
   // FAB logic
   function handleFab() {
@@ -174,6 +218,9 @@ function App() {
   }
 
   const showFab = activeNav !== "reports";
+
+  // Current folder name
+  const currentFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
 
   return (
     <div className="min-h-dvh bg-linen text-coal">
@@ -203,27 +250,6 @@ function App() {
         </div>
       </div>
 
-      {/* Categories */}
-      {activeNav === "home" && (
-        <div className="max-w-lg mx-auto px-4 pt-3 overflow-x-auto hide-scrollbar">
-          <div className="flex gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
-                  activeCategory === cat
-                    ? "bg-coal text-white"
-                    : "bg-white text-muted hover:bg-line"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Tab rail */}
       {activeNav === "home" && (
         <nav className="max-w-lg mx-auto flex border-b border-line bg-linen sticky top-16 z-30 relative">
@@ -238,7 +264,6 @@ function App() {
               {tab.label}
             </button>
           ))}
-          {/* Smooth indicator */}
           <div
             className="absolute bottom-0 h-0.5 bg-accent transition-all duration-300 ease-out"
             style={{
@@ -251,51 +276,124 @@ function App() {
 
       {/* Content */}
       <main className="max-w-lg mx-auto pb-24 px-4 pt-4 space-y-3">
-        {activeNav === "home" && activeTab === "brew_bar" && (
+        {activeNav === "home" && (
           <>
-            {filteredBrewBar.length === 0 && (
-              <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
+            {/* Back button when inside a folder */}
+            {activeFolderId && (
+              <button
+                onClick={() => setActiveFolderId(null)}
+                className="flex items-center gap-2 text-sm font-semibold text-muted transition-colors duration-200 hover:text-coal"
+              >
+                <ArrowLeft size={18} />
+                <span>Назад — все рецепты</span>
+              </button>
             )}
-            {filteredBrewBar.map((recipe) => (
-              <BrewBarCard
-                key={recipe.id}
-                recipe={recipe}
-                onSelect={setSelectedRecipe}
-                onEdit={() => handleEdit(recipe)}
-              />
-            ))}
-          </>
-        )}
 
-        {activeNav === "home" && activeTab === "batch_brew" && (
-          <>
-            {filteredBatchBrew.length === 0 && (
-              <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
+            {/* Folder cards (only in root) */}
+            {!activeFolderId && currentFolders.length > 0 && (
+              <div className="space-y-2">
+                {currentFolders.map((folder) => {
+                  const count =
+                    activeTab === "brew_bar"
+                      ? brewBarRecipes.filter((r) => r.folderId === folder.id).length
+                      : activeTab === "batch_brew"
+                        ? batchBrewRecipes.filter((r) => r.folderId === folder.id).length
+                        : signatureTtks.filter((r) => r.folderId === folder.id).length;
+                  return (
+                    <button
+                      key={folder.id}
+                      onClick={() => setActiveFolderId(folder.id)}
+                      className="w-full bg-linen rounded-2xl p-4 text-left flex items-center gap-3 active:scale-[0.98] transition-all duration-200"
+                    >
+                      <FolderOpen size={28} className="text-accent flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-coal">{folder.name}</span>
+                        <p className="text-xs text-muted mt-0.5">{count} рецептов</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(folder.id);
+                        }}
+                        className="p-1 text-faint hover:text-red transition-colors duration-200"
+                        aria-label="Удалить папку"
+                      >
+                        <X size={14} />
+                      </button>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-            {filteredBatchBrew.map((recipe) => (
-              <BatchBrewCard
-                key={recipe.id}
-                recipe={recipe}
-                onSelect={setSelectedRecipe}
-                onEdit={() => handleEdit(recipe)}
-              />
-            ))}
-          </>
-        )}
 
-        {activeNav === "home" && activeTab === "signature_ttk" && (
-          <>
-            {filteredSignature.length === 0 && (
-              <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
+            {/* "+ Папка" button (only in root) */}
+            {!activeFolderId && (
+              <button
+                onClick={() => setIsCreatingFolder(true)}
+                className="w-full bg-white border-2 border-dashed border-line rounded-2xl py-3 text-sm font-semibold text-muted flex items-center justify-center gap-2 transition-colors duration-200 hover:border-accent hover:text-accent"
+              >
+                <Folder size={18} />
+                + Папка
+              </button>
             )}
-            {filteredSignature.map((ttk) => (
-              <SignatureTtkCard
-                key={ttk.id}
-                ttk={ttk}
-                onSelect={setSelectedRecipe}
-                onEdit={() => handleEdit(ttk)}
-              />
-            ))}
+
+            {/* Recipes */}
+            {activeTab === "brew_bar" && (
+              <>
+                {filteredBrewBar.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
+                )}
+                {filteredBrewBar.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredBrewBar.map((recipe) => (
+                  <BrewBarCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(recipe)}
+                  />
+                ))}
+              </>
+            )}
+
+            {activeTab === "batch_brew" && (
+              <>
+                {filteredBatchBrew.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
+                )}
+                {filteredBatchBrew.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredBatchBrew.map((recipe) => (
+                  <BatchBrewCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(recipe)}
+                  />
+                ))}
+              </>
+            )}
+
+            {activeTab === "signature_ttk" && (
+              <>
+                {filteredSignature.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
+                )}
+                {filteredSignature.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredSignature.map((ttk) => (
+                  <SignatureTtkCard
+                    key={ttk.id}
+                    ttk={ttk}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(ttk)}
+                  />
+                ))}
+              </>
+            )}
           </>
         )}
 
@@ -378,6 +476,14 @@ function App() {
         </div>
       </nav>
 
+      {/* Create Folder Modal */}
+      {isCreatingFolder && (
+        <CreateFolderModal
+          onClose={() => setIsCreatingFolder(false)}
+          onCreate={handleCreateFolder}
+        />
+      )}
+
       {/* Detail Modal */}
       {selectedRecipe && !isEditing && (
         <DetailModal
@@ -403,6 +509,7 @@ function App() {
       {(isCreating || isEditing) && (
         <RecipeFormModal
           type={activeTab}
+          folders={currentFolders}
           initial={isEditing ? selectedRecipe : null}
           onClose={() => {
             setIsCreating(false);
@@ -458,6 +565,61 @@ function App() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// === Create Folder Modal ===
+function CreateFolderModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onCreate(name.trim());
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-end justify-center" onClick={onClose}>
+      <form
+        className="bg-white rounded-t-2xl w-full max-w-lg sheet-animate"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
+          <button type="button" onClick={onClose} className="p-2 text-muted transition-colors duration-200">
+            <X size={22} />
+          </button>
+          <h2 className="font-bold text-lg">Новая папка</h2>
+          <div className="w-10" />
+        </div>
+        <div className="p-4 space-y-4">
+          <label className="block">
+            <span className="text-xs font-bold text-muted uppercase block mb-1">Название папки</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Например: Infuse, Пуровер"
+              className="w-full px-3 py-2 bg-linen rounded-xl text-sm transition-all duration-200"
+              autoFocus
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all duration-200 active:scale-[0.98]"
+          >
+            Создать
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -960,16 +1122,21 @@ function ItemDetailModal({
 // === Recipe Form Modal ===
 function RecipeFormModal({
   type,
+  folders,
   initial,
   onClose,
   onSave,
 }: {
   type: TabId;
+  folders: RecipeFolder[];
   initial: any | null;
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
+
+  // Folder selection
+  const [folderId, setFolderId] = useState<string | null>(initial?.folderId ?? null);
 
   // Brew Bar form
   const [lotName, setLotName] = useState(initial?.lotName ?? "");
@@ -1085,11 +1252,13 @@ function RecipeFormModal({
     try {
       if (type === "brew_bar") {
         await onSave({
+          folderId: folderId || null,
           lotName, roaster, method, grindClicks,
           coffeeWeightG, waterVolumeMl, steps, notes,
         });
       } else if (type === "batch_brew") {
         await onSave({
+          folderId: folderId || null,
           lotName, roaster, thermosVolumeMl, coffeeDoseG,
           ratio, waterVolumeMl, brewerProgram, notes,
         });
@@ -1099,6 +1268,7 @@ function RecipeFormModal({
           .map((ing) => ({ ingredientName: ing.name, exactAmount: ing.amount }));
         const mappedSteps = serviceSteps.filter(Boolean);
         await onSave({
+          folderId: folderId || null,
           drinkName, category, servingVolumeMl, vessel,
           imageUrl: photoBase64 || initial?.imageUrl || "",
           ingredients: mappedIngredients,
@@ -1131,6 +1301,19 @@ function RecipeFormModal({
         </div>
 
         <div className="p-4 space-y-4">
+          {/* Folder selector */}
+          {folders.length > 0 && (
+            <Select
+              label="Папка (категория)"
+              value={folderId ?? ""}
+              onChange={(v) => setFolderId(v || null)}
+              options={[
+                { value: "", label: "Без папки (в корень)" },
+                ...folders.map((f) => ({ value: f.id, label: f.name })),
+              ]}
+            />
+          )}
+
           {/* Common fields */}
           {type !== "signature_ttk" && (
             <>
@@ -1164,16 +1347,9 @@ function RecipeFormModal({
                   id="photo-upload"
                   onChange={handlePhotoUpload}
                 />
-                <label
-                  htmlFor="photo-upload"
-                  className="block cursor-pointer"
-                >
+                <label htmlFor="photo-upload" className="block cursor-pointer">
                   {photoPreview ? (
-                    <img
-                      src={photoPreview}
-                      alt=""
-                      className="w-full h-40 object-cover rounded-xl"
-                    />
+                    <img src={photoPreview} alt="" className="w-full h-40 object-cover rounded-xl" />
                   ) : (
                     <div className="w-full h-32 bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
                       Нажмите, чтобы загрузить фото подачи
@@ -1263,7 +1439,7 @@ function RecipeFormModal({
                 <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
               </div>
 
-              {/* Steps editor — redesigned cards */}
+              {/* Steps editor */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-muted uppercase">Шаги заваривания</span>
@@ -1364,7 +1540,6 @@ function RecipeFormModal({
               onClick={() => {
                 if (confirm("Удалить рецепт?")) {
                   onClose();
-                  // Parent handles deletion via the modal's onDelete
                 }
               }}
               className="w-full h-12 bg-red/10 text-red rounded-xl font-bold text-base transition-all duration-200 active:scale-[0.98]"

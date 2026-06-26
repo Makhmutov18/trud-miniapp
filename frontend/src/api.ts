@@ -1,4 +1,12 @@
 export type RecipeType = "brew_bar" | "batch_brew" | "signature_ttk";
+
+export type RecipeFolder = {
+  id: string;
+  name: string;
+  tab: TabId;
+};
+
+export type TabId = "brew_bar" | "batch_brew" | "signature_ttk";
 export type BrewMethod = "v60" | "switch" | "orea";
 export type SignatureDrinkCategory = "hot" | "cold";
 
@@ -12,6 +20,7 @@ export type BrewBarStep = {
 export type BrewBarRecipe = {
   id: string;
   type: "brew_bar";
+  folderId: string | null;
   lotName: string;
   roaster: string;
   method: BrewMethod;
@@ -27,6 +36,7 @@ export type BrewBarRecipe = {
 export type BatchBrewRecipe = {
   id: string;
   type: "batch_brew";
+  folderId: string | null;
   lotName: string;
   roaster: string;
   thermosVolumeMl: number;
@@ -47,6 +57,7 @@ export type Ingredient = {
 export type SignatureTtk = {
   id: string;
   type: "signature_ttk";
+  folderId: string | null;
   drinkName: string;
   category: SignatureDrinkCategory;
   servingVolumeMl: number;
