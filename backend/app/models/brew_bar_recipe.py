@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import Float, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database import Base
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+class BrewBarRecipe(Base):
+    __tablename__ = "brew_bar_recipes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    lot_name: Mapped[str] = mapped_column(String, nullable=False)
+    roaster: Mapped[str] = mapped_column(String, default="")
+    method: Mapped[str] = mapped_column(String, nullable=False)
+    grind_clicks: Mapped[str] = mapped_column(String, default="")
+    coffee_weight_g: Mapped[float] = mapped_column(Float, nullable=False)
+    water_volume_ml: Mapped[float] = mapped_column(Float, nullable=False)
+    steps: Mapped[str] = mapped_column(Text, default="[]")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[str] = mapped_column(String, default=now_iso)
+    updated_at: Mapped[str] = mapped_column(String, default=now_iso)
