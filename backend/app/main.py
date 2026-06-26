@@ -48,9 +48,14 @@ async def startup() -> None:
     async with async_session() as db:
         await seed_database(db)
 
-    # Configure Telegram
+    # Configure Telegram (non-fatal — app works without it)
     if settings.bot_token and settings.public_base_url:
-        await configure_telegram()
+        try:
+            await configure_telegram()
+        except Exception:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Telegram webhook setup failed — app will still work", exc_info=True)
 
 
 @app.get("/api/health")
