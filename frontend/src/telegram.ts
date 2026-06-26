@@ -46,8 +46,8 @@ export function bootTelegram(): TelegramUser | undefined {
   if (!app) return undefined;
   app.ready();
   app.expand();
-  app.setHeaderColor?.("#f5efe4");
-  app.setBackgroundColor?.("#f5efe4");
+  app.setHeaderColor?.("#F4F1EA");
+  app.setBackgroundColor?.("#F4F1EA");
   return app.initDataUnsafe?.user;
 }
 
