@@ -1,0 +1,25 @@
+{
+  "homeChecks": {
+    "title": "ТРУД",
+    "url": "http://127.0.0.1:8000/",
+    "recipesVisible": true,
+    "v60Visible": true,
+    "addVisible": true,
+    "hasHorizontalOverflow": false
+  },
+  "detailChecks": {
+    "detailVisible": true,
+    "detailTitleVisible": true,
+    "timerVisible": true,
+    "extractionVisible": true
+  },
+  "createChecks": {
+    "createVisible": true,
+    "titleInputVisible": true
+  },
+  "desktopChecks": {
+    "recipesVisible": true,
+    "centeredFrame": true
+  },
+  "messages": []
+}

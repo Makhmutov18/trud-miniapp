@@ -49,6 +49,17 @@ class SignatureTtkRepository:
         await self.session.refresh(ttk)
         return ttk
 
+    async def replace(self, ttk_id: str, data: dict[str, Any]) -> SignatureTtk | None:
+        """Full replacement (PUT) — delete and recreate."""
+        existing = await self.get(ttk_id)
+        if not existing:
+            return None
+        await self.session.execute(
+            delete(SignatureTtk).where(SignatureTtk.id == ttk_id)
+        )
+        await self.session.flush()
+        return await self.create({**data, "id": ttk_id})
+
     async def update(self, ttk_id: str, data: dict[str, Any]) -> SignatureTtk | None:
         existing = await self.get(ttk_id)
         if not existing:

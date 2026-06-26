@@ -60,6 +60,18 @@ async def get_brew_bar(
     return recipe
 
 
+@router.put("/brew-bar/{recipe_id}")
+async def replace_brew_bar(
+    recipe_id: str,
+    payload: BrewBarCreate,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    recipe = await service.replace_brew_bar(recipe_id, payload)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Brew bar recipe not found")
+    return recipe
+
+
 @router.patch("/brew-bar/{recipe_id}")
 async def update_brew_bar(
     recipe_id: str,
@@ -95,6 +107,18 @@ async def get_batch_brew(
     service: RecipeService = Depends(get_recipe_service),
 ):
     recipe = await service.get_batch_brew(recipe_id)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Batch brew recipe not found")
+    return recipe
+
+
+@router.put("/batch-brew/{recipe_id}")
+async def replace_batch_brew(
+    recipe_id: str,
+    payload: BatchBrewCreate,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    recipe = await service.replace_batch_brew(recipe_id, payload)
     if not recipe:
         raise HTTPException(status_code=404, detail="Batch brew recipe not found")
     return recipe
@@ -136,6 +160,18 @@ async def get_signature_ttk(
     service: RecipeService = Depends(get_recipe_service),
 ):
     ttk = await service.get_signature_ttk(ttk_id)
+    if not ttk:
+        raise HTTPException(status_code=404, detail="Signature TTK not found")
+    return ttk
+
+
+@router.put("/signature-ttk/{ttk_id}")
+async def replace_signature_ttk(
+    ttk_id: str,
+    payload: SignatureTtkCreate,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    ttk = await service.replace_signature_ttk(ttk_id, payload)
     if not ttk:
         raise HTTPException(status_code=404, detail="Signature TTK not found")
     return ttk

@@ -100,6 +100,10 @@ class RecipeService:
         recipe = await self.brew_bar_repo.create(payload.model_dump(mode="json"))
         return _brew_bar_to_response(recipe)
 
+    async def replace_brew_bar(self, recipe_id: str, payload: BrewBarCreate) -> dict[str, Any] | None:
+        recipe = await self.brew_bar_repo.replace(recipe_id, payload.model_dump(mode="json"))
+        return _brew_bar_to_response(recipe) if recipe else None
+
     async def update_brew_bar(self, recipe_id: str, payload: BrewBarUpdate) -> dict[str, Any] | None:
         recipe = await self.brew_bar_repo.update(recipe_id, payload.model_dump(exclude_none=True, mode="json"))
         return _brew_bar_to_response(recipe) if recipe else None
@@ -119,6 +123,10 @@ class RecipeService:
         recipe = await self.batch_brew_repo.create(payload.model_dump(mode="json"))
         return _batch_brew_to_response(recipe)
 
+    async def replace_batch_brew(self, recipe_id: str, payload: BatchBrewCreate) -> dict[str, Any] | None:
+        recipe = await self.batch_brew_repo.replace(recipe_id, payload.model_dump(mode="json"))
+        return _batch_brew_to_response(recipe) if recipe else None
+
     async def update_batch_brew(self, recipe_id: str, payload: BatchBrewUpdate) -> dict[str, Any] | None:
         recipe = await self.batch_brew_repo.update(recipe_id, payload.model_dump(exclude_none=True, mode="json"))
         return _batch_brew_to_response(recipe) if recipe else None
@@ -137,6 +145,10 @@ class RecipeService:
     async def create_signature_ttk(self, payload: SignatureTtkCreate) -> dict[str, Any]:
         ttk = await self.signature_ttk_repo.create(payload.model_dump(mode="json"))
         return _signature_ttk_to_response(ttk)
+
+    async def replace_signature_ttk(self, ttk_id: str, payload: SignatureTtkCreate) -> dict[str, Any] | None:
+        ttk = await self.signature_ttk_repo.replace(ttk_id, payload.model_dump(mode="json"))
+        return _signature_ttk_to_response(ttk) if ttk else None
 
     async def update_signature_ttk(self, ttk_id: str, payload: SignatureTtkUpdate) -> dict[str, Any] | None:
         ttk = await self.signature_ttk_repo.update(ttk_id, payload.model_dump(exclude_none=True, mode="json"))

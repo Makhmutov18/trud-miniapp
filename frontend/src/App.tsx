@@ -1,603 +1,909 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Bookmark,
-  CheckSquare,
-  ChevronRight,
-  ClipboardList,
   Coffee,
-  Filter,
-  ImagePlus,
-  Menu,
+  FlaskConical,
+  CupSoda,
+  Home,
+  Bookmark,
+  User,
   Plus,
-  Search,
-  Sparkles,
-  Store,
-  X
+  Pencil,
+  X,
+  ChevronRight,
+  Clock,
+  Droplets,
+  Weight,
+  ImagePlus,
 } from "lucide-react";
-import { Category, LibraryItem, calculateExtraction, createItem, fetchItems } from "./api";
-import { fallbackItems } from "./fallbackData";
-import { TelegramUser, bootTelegram } from "./telegram";
+import {
+  BrewBarRecipe,
+  BatchBrewRecipe,
+  SignatureTtk,
+  BrewBarStep,
+  Ingredient,
+  fetchBrewBarRecipes,
+  fetchBatchBrewRecipes,
+  fetchSignatureTtks,
+  createBrewBar,
+  updateBrewBar,
+  createBatchBrew,
+  updateBatchBrew,
+  createSignatureTtk,
+  updateSignatureTtk,
+  deleteBrewBar,
+  deleteBatchBrew,
+  deleteSignatureTtk,
+} from "./api";
+import { bootTelegram } from "./telegram";
 
-type Tab = {
-  id: Category;
-  label: string;
-  icon: typeof Coffee;
-};
+type TabId = "brew_bar" | "batch_brew" | "signature_ttk";
 
-const tabs: Tab[] = [
-  { id: "coffee", label: "Кофе", icon: Coffee },
-  { id: "pastry", label: "Кондитерка", icon: Store },
-  { id: "checklist", label: "Чек-листы", icon: ClipboardList }
+const tabs: { id: TabId; label: string; icon: typeof Coffee }[] = [
+  { id: "brew_bar", label: "Воронки", icon: Coffee },
+  { id: "batch_brew", label: "Батч-брю", icon: FlaskConical },
+  { id: "signature_ttk", label: "Авторские", icon: CupSoda },
 ];
 
-const itemOrder = ["V60", "Batch brew", "Эспрессо", "Авторские", "Латте облепиха"];
-
-const emptyForm: Omit<LibraryItem, "id"> = {
-  category: "coffee",
-  subcategory: "black",
-  title: "",
-  subtitle: "",
-  description: "",
-  price: null,
-  imageUrl: "",
-  specs: [],
-  steps: [],
-  tags: [],
-  isFavorite: false
-};
-
 function App() {
-  const [items, setItems] = useState<LibraryItem[]>(fallbackItems);
-  const [activeTab, setActiveTab] = useState<Category>("coffee");
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<LibraryItem | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("brew_bar");
+  const [brewBarRecipes, setBrewBarRecipes] = useState<BrewBarRecipe[]>([]);
+  const [batchBrewRecipes, setBatchBrewRecipes] = useState<BatchBrewRecipe[]>([]);
+  const [signatureTtks, setSignatureTtks] = useState<SignatureTtk[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<BrewBarRecipe | BatchBrewRecipe | SignatureTtk | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [status, setStatus] = useState("Локальная база");
-  const [user, setUser] = useState<TelegramUser | undefined>();
+  const [isEditing, setIsEditing] = useState(false);
+  const [status, setStatus] = useState("Загрузка...");
 
   useEffect(() => {
-    setUser(bootTelegram());
-    fetchItems()
-      .then((data) => {
-        setItems(data);
-        setStatus("Синхронизировано");
-      })
-      .catch(() => setStatus("Демо-режим"));
+    bootTelegram();
+    loadAll();
   }, []);
 
-  const filtered = useMemo(() => {
-    const needle = query.toLowerCase().trim();
-    return items
-      .filter((item) => {
-        const inTab = item.category === activeTab;
-        const inSearch = !needle || [item.title, item.subtitle, item.description, ...item.tags].join(" ").toLowerCase().includes(needle);
-        return inTab && inSearch;
-      })
-      .sort((a, b) => {
-        const left = itemOrder.indexOf(a.title);
-        const right = itemOrder.indexOf(b.title);
-        if (left !== -1 || right !== -1) return (left === -1 ? 99 : left) - (right === -1 ? 99 : right);
-        return a.title.localeCompare(b.title, "ru");
-      });
-  }, [items, activeTab, query]);
-
-  const coffeeItems = items.filter((item) => item.category === "coffee");
-  const pastryItems = items.filter((item) => item.category === "pastry");
-  const checklistItems = items.filter((item) => item.category === "checklist");
-
-  async function handleCreate(payload: Omit<LibraryItem, "id">) {
-    const optimistic: LibraryItem = { ...payload, id: crypto.randomUUID() };
-    setItems((current) => [optimistic, ...current]);
-    setIsCreating(false);
+  async function loadAll() {
     try {
-      const created = await createItem(payload);
-      setItems((current) => current.map((item) => (item.id === optimistic.id ? created : item)));
-      setStatus("Карточка создана");
+      const [brewBar, batchBrew, signature] = await Promise.all([
+        fetchBrewBarRecipes(),
+        fetchBatchBrewRecipes(),
+        fetchSignatureTtks(),
+      ]);
+      setBrewBarRecipes(brewBar);
+      setBatchBrewRecipes(batchBrew);
+      setSignatureTtks(signature);
+      setStatus("Синхронизировано");
     } catch {
-      setStatus("Сохранено только локально");
+      setStatus("Офлайн");
+    }
+  }
+
+  function handleEdit(recipe: BrewBarRecipe | BatchBrewRecipe | SignatureTtk) {
+    setSelectedRecipe(recipe);
+    setIsEditing(true);
+  }
+
+  async function handleDelete(type: TabId, id: string) {
+    try {
+      if (type === "brew_bar") await deleteBrewBar(id);
+      else if (type === "batch_brew") await deleteBatchBrew(id);
+      else await deleteSignatureTtk(id);
+      await loadAll();
+      setSelectedRecipe(null);
+    } catch {
+      alert("Не удалось удалить");
     }
   }
 
   return (
-    <main className="app-shell">
-      <section className="phone-frame">
-        <div className="ambient ambient-left" />
-        <div className="topbar">
-          <BrandWordmark />
-          <div className="topbar-actions">
-            <button className="icon-button" aria-label="Поиск">
-              <Search size={24} />
-            </button>
-            <button className="icon-button elevated" aria-label="Меню">
-              <Menu size={24} />
-            </button>
+    <div className="min-h-dvh bg-linen text-coal">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-linen/90 backdrop-blur-sm border-b border-line">
+        <div className="max-w-lg mx-auto flex items-center justify-center h-16 px-4">
+          <div className="flex items-baseline gap-1.5 text-3xl font-black tracking-tight">
+            <span className="text-slate">Т</span>
+            <span className="text-accent">Р</span>
+            <span className="text-red">У</span>
+            <span className="text-coal">Д</span>
           </div>
         </div>
+      </header>
 
-        <div className="status-row">
-          <span>{status}</span>
-          <span>{user?.first_name ? `${user.first_name}, смена открыта` : "Бар · ТРУД"}</span>
-        </div>
+      {/* Status bar */}
+      <div className="max-w-lg mx-auto px-4 py-2 text-xs text-muted font-semibold uppercase tracking-wider flex justify-between">
+        <span>{status}</span>
+        <span>Бар · ТРУД</span>
+      </div>
 
-        <nav className="tab-rail" aria-label="Разделы">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
+      {/* Tab rail */}
+      <nav className="max-w-lg mx-auto flex border-b border-line bg-linen sticky top-16 z-30">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 h-12 text-sm font-bold transition-colors ${
+                activeTab === tab.id
+                  ? "text-coal border-b-2 border-accent"
+                  : "text-muted"
+              }`}
+            >
+              <Icon size={18} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Content */}
+      <main className="max-w-lg mx-auto pb-24 px-4 pt-4 space-y-3">
+        {activeTab === "brew_bar" && (
+          <>
+            {brewBarRecipes.length === 0 && (
+              <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
+            )}
+            {brewBarRecipes.map((recipe) => (
+              <BrewBarCard
+                key={recipe.id}
+                recipe={recipe}
+                onSelect={setSelectedRecipe}
+                onEdit={() => handleEdit(recipe)}
+              />
+            ))}
+          </>
+        )}
+
+        {activeTab === "batch_brew" && (
+          <>
+            {batchBrewRecipes.length === 0 && (
+              <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
+            )}
+            {batchBrewRecipes.map((recipe) => (
+              <BatchBrewCard
+                key={recipe.id}
+                recipe={recipe}
+                onSelect={setSelectedRecipe}
+                onEdit={() => handleEdit(recipe)}
+              />
+            ))}
+          </>
+        )}
+
+        {activeTab === "signature_ttk" && (
+          <>
+            {signatureTtks.length === 0 && (
+              <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
+            )}
+            {signatureTtks.map((ttk) => (
+              <SignatureTtkCard
+                key={ttk.id}
+                ttk={ttk}
+                onSelect={setSelectedRecipe}
+                onEdit={() => handleEdit(ttk)}
+              />
+            ))}
+          </>
+        )}
+      </main>
+
+      {/* FAB */}
+      <button
+        onClick={() => setIsCreating(true)}
+        className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Добавить"
+      >
+        <Plus size={28} />
+      </button>
+
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-[0_-2px_12px_rgba(0,0,0,0.06)] bottom-nav-safe">
+        <div className="max-w-lg mx-auto flex">
+          {[
+            { id: "home", label: "Главная", icon: Home },
+            { id: "favorites", label: "Избранное", icon: Bookmark },
+            { id: "profile", label: "Профиль", icon: User },
+          ].map((item) => {
+            const Icon = item.icon;
             return (
               <button
-                key={tab.id}
-                className={activeTab === tab.id ? "tab active" : "tab"}
-                onClick={() => setActiveTab(tab.id)}
+                key={item.id}
+                className="flex-1 flex flex-col items-center justify-center h-16 gap-0.5 text-muted text-xs font-semibold"
               >
-                <Icon size={19} />
-                <span>{tab.label}</span>
+                <Icon size={22} />
+                <span>{item.label}</span>
               </button>
             );
           })}
-        </nav>
-
-        <div className="search-row">
-          <label className="search-field">
-            <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти рецепт или товар" />
-          </label>
-          <button className="filter-button" aria-label="Фильтры">
-            <Filter size={19} />
-          </button>
         </div>
+      </nav>
 
-        <section className="content-scroll">
-          {activeTab === "coffee" && (
-            <>
-              <SectionHeader title="Рецепты кофе" action="Фильтры" />
-              <QuickStats items={coffeeItems} />
-              <div className="card-stack">
-                {filtered.map((item, index) => (
-                  <RecipeCard key={item.id} item={item} index={index} onSelect={setSelected} />
-                ))}
-              </div>
-              <PastryPreview items={pastryItems.slice(0, 3)} onSelect={setSelected} onShowAll={() => setActiveTab("pastry")} />
-            </>
-          )}
+      {/* Detail Modal */}
+      {selectedRecipe && !isEditing && (
+        <DetailModal
+          recipe={selectedRecipe}
+          type={activeTab}
+          onClose={() => setSelectedRecipe(null)}
+          onEdit={() => setIsEditing(true)}
+          onDelete={() => handleDelete(activeTab, selectedRecipe.id)}
+        />
+      )}
 
-          {activeTab === "pastry" && (
-            <>
-              <SectionHeader title="Кондитерская карта" action={`${pastryItems.length} позиций`} />
-              <div className="pastry-grid">
-                {filtered.map((item) => (
-                  <PastryCard key={item.id} item={item} onSelect={setSelected} />
-                ))}
-              </div>
-            </>
-          )}
+      {/* Create/Edit Modal */}
+      {(isCreating || isEditing) && (
+        <RecipeFormModal
+          type={activeTab}
+          initial={isEditing ? selectedRecipe : null}
+          onClose={() => {
+            setIsCreating(false);
+            setIsEditing(false);
+            setSelectedRecipe(null);
+          }}
+          onSave={async (data) => {
+            try {
+              if (isEditing && selectedRecipe) {
+                if (activeTab === "brew_bar") await updateBrewBar(selectedRecipe.id, data as any);
+                else if (activeTab === "batch_brew") await updateBatchBrew(selectedRecipe.id, data as any);
+                else await updateSignatureTtk(selectedRecipe.id, data as any);
+              } else {
+                if (activeTab === "brew_bar") await createBrewBar(data as any);
+                else if (activeTab === "batch_brew") await createBatchBrew(data as any);
+                else await createSignatureTtk(data as any);
+              }
+              await loadAll();
+              setIsCreating(false);
+              setIsEditing(false);
+              setSelectedRecipe(null);
+            } catch {
+              alert("Ошибка сохранения");
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
-          {activeTab === "checklist" && (
-            <>
-              <SectionHeader title="Чек-листы" action={`${checklistItems.length} активных`} />
-              <div className="checklist-panel">
-                {filtered.map((item) => (
-                  <ChecklistCard key={item.id} item={item} onSelect={setSelected} />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-
-        <button className="fab" data-testid="add-card" onClick={() => setIsCreating(true)} aria-label="Добавить карточку">
-          <Plus size={32} />
-          <span>Добавить</span>
+// === Brew Bar Card ===
+function BrewBarCard({
+  recipe,
+  onSelect,
+  onEdit,
+}: {
+  recipe: BrewBarRecipe;
+  onSelect: (r: BrewBarRecipe) => void;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(recipe)}
+      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-transform"
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-lg text-coal truncate">{recipe.lotName}</h3>
+          <p className="text-sm text-muted mt-0.5">
+            {recipe.roaster} · {recipe.method.toUpperCase()} · {recipe.grindClicks}
+          </p>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+          aria-label="Редактировать"
+        >
+          <Pencil size={16} />
         </button>
-
-        <footer className="bottom-nav">
-          <button className="bottom-item active">
-            <Coffee size={22} />
-            <span>Главная</span>
-          </button>
-          <button className="bottom-item">
-            <Bookmark size={22} />
-            <span>Избранное</span>
-          </button>
-          <button className="bottom-item">
-            <Menu size={22} />
-            <span>Профиль</span>
-          </button>
-        </footer>
-      </section>
-
-      {selected && <DetailSheet item={selected} onClose={() => setSelected(null)} />}
-      {isCreating && <CreateSheet activeCategory={activeTab} onClose={() => setIsCreating(false)} onSubmit={handleCreate} />}
-    </main>
+      </div>
+      <div className="flex gap-4 mt-3 text-sm text-muted">
+        <span className="flex items-center gap-1">
+          <Weight size={14} /> {recipe.coffeeWeightG} г
+        </span>
+        <span className="flex items-center gap-1">
+          <Droplets size={14} /> {recipe.waterVolumeMl} мл
+        </span>
+        <span className="flex items-center gap-1">
+          <Clock size={14} /> {recipe.steps.length} шагов
+        </span>
+      </div>
+    </button>
   );
 }
 
-function SectionHeader({ title, action }: { title: string; action: string }) {
+// === Batch Brew Card ===
+function BatchBrewCard({
+  recipe,
+  onSelect,
+  onEdit,
+}: {
+  recipe: BatchBrewRecipe;
+  onSelect: (r: BatchBrewRecipe) => void;
+  onEdit: () => void;
+}) {
   return (
-    <div className="section-header">
-      <h1>{title}</h1>
-      <button>{action}</button>
-    </div>
-  );
-}
-
-function BrandWordmark() {
-  return (
-    <div className="brand-wordmark" aria-label="ТРУД">
-      <span>Т</span>
-      <span>Р</span>
-      <span>У</span>
-      <span>Д</span>
-    </div>
-  );
-}
-
-function QuickStats({ items }: { items: LibraryItem[] }) {
-  const espresso = items.filter((item) => item.subcategory === "espresso").length;
-  const black = items.filter((item) => item.subcategory === "black").length;
-  const signature = items.filter((item) => item.subcategory === "signature").length;
-  return (
-    <div className="quick-stats">
-      <div>
-        <span>{black}</span>
-        <p>черный</p>
-      </div>
-      <div>
-        <span>{espresso}</span>
-        <p>эспрессо</p>
-      </div>
-      <div>
-        <span>{signature}</span>
-        <p>авторские</p>
-      </div>
-    </div>
-  );
-}
-
-function RecipeCard({ item, index, onSelect }: { item: LibraryItem; index: number; onSelect: (item: LibraryItem) => void }) {
-  return (
-    <button className="recipe-card" data-testid={`recipe-card-${item.id}`} onClick={() => onSelect(item)}>
-      <div className="recipe-index">{String(index + 1).padStart(2, "0")}</div>
-      <div className="recipe-visual">
-        <CoffeeSketch type={item.subcategory} />
-      </div>
-      <div className="recipe-body">
-        <div className="recipe-title-row">
-          <div>
-            <h2>{item.title}</h2>
-            <p>{item.subtitle}</p>
-          </div>
-          <Bookmark className={item.isFavorite ? "bookmarked" : ""} size={23} />
+    <button
+      onClick={() => onSelect(recipe)}
+      className="w-full bg-white rounded-2xl p-4 text-left shadow-sm active:scale-[0.98] transition-transform"
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-lg text-coal truncate">{recipe.lotName}</h3>
+          <p className="text-sm text-muted mt-0.5">{recipe.roaster}</p>
         </div>
-        <div className="spec-row">
-          {item.specs.slice(0, 4).map((spec) => (
-            <span key={`${item.id}-${spec.label}`}>
-              <b>{spec.label}</b>
-              {spec.value}
-            </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+          aria-label="Редактировать"
+        >
+          <Pencil size={16} />
+        </button>
+      </div>
+      <div className="flex gap-4 mt-3 text-sm text-muted flex-wrap">
+        <span>Термос {recipe.thermosVolumeMl} мл</span>
+        <span>{recipe.coffeeDoseG} г · {recipe.ratio}</span>
+        <span className="text-coal font-semibold">{recipe.brewerProgram}</span>
+      </div>
+    </button>
+  );
+}
+
+// === Signature TTK Card ===
+function SignatureTtkCard({
+  ttk,
+  onSelect,
+  onEdit,
+}: {
+  ttk: SignatureTtk;
+  onSelect: (r: SignatureTtk) => void;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(ttk)}
+      className="w-full bg-white rounded-2xl overflow-hidden text-left shadow-sm active:scale-[0.98] transition-transform"
+    >
+      {ttk.imageUrl && (
+        <img
+          src={ttk.imageUrl}
+          alt=""
+          className="w-full h-40 object-cover"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-lg text-coal">{ttk.drinkName}</h3>
+            <p className="text-sm text-muted mt-0.5">
+              {ttk.category === "hot" ? "Горячий" : "Холодный"} · {ttk.servingVolumeMl} мл · {ttk.vessel}
+            </p>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="ml-2 p-2 text-muted hover:text-accent flex-shrink-0"
+            aria-label="Редактировать"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+        <div className="mt-3 text-sm text-muted">
+          {ttk.ingredients.length} ингредиентов · {ttk.serviceSteps.length} шагов
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// === Detail Modal ===
+function DetailModal({
+  recipe,
+  type,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  recipe: BrewBarRecipe | BatchBrewRecipe | SignatureTtk;
+  type: TabId;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
+      <div
+        className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
+          <button onClick={onClose} className="p-2 text-muted" aria-label="Закрыть">
+            <X size={22} />
+          </button>
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="p-2 text-accent" aria-label="Редактировать">
+              <Pencil size={20} />
+            </button>
+            <button onClick={onDelete} className="p-2 text-red" aria-label="Удалить">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {type === "brew_bar" && <BrewBarDetail recipe={recipe as BrewBarRecipe} />}
+          {type === "batch_brew" && <BatchBrewDetail recipe={recipe as BatchBrewRecipe} />}
+          {type === "signature_ttk" && <SignatureTtkDetail ttk={recipe as SignatureTtk} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrewBarDetail({ recipe }: { recipe: BrewBarRecipe }) {
+  return (
+    <div>
+      <h2 className="text-2xl font-black text-coal">{recipe.lotName}</h2>
+      <p className="text-muted text-sm mt-1">{recipe.roaster} · {recipe.method.toUpperCase()} · {recipe.grindClicks}</p>
+      <div className="flex gap-4 mt-3 text-sm">
+        <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.coffeeWeightG} г кофе</span>
+        <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.waterVolumeMl} мл воды</span>
+      </div>
+
+      {/* Timeline */}
+      <div className="mt-6">
+        <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Таймлайн</h3>
+        <div className="flex items-center gap-2 mb-4">
+          {recipe.steps.map((step, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div
+                className="timeline-dot"
+                style={{
+                  backgroundColor:
+                    step.stageName.toLowerCase().includes("bloom") ? "#8E96A7" :
+                    step.stageName.toLowerCase().includes("yellow") ? "#C89B55" : "#C84B31",
+                }}
+              />
+              {i < recipe.steps.length - 1 && <div className="w-6 h-0.5 bg-line" />}
+            </div>
+          ))}
+        </div>
+
+        {/* Steps table */}
+        <div className="bg-linen rounded-xl p-3">
+          <div className="step-row font-bold text-xs text-muted uppercase">
+            <span>Step</span>
+            <span>Стадия</span>
+            <span className="text-right">Вод.</span>
+            <span className="text-right">Мес.</span>
+          </div>
+          {recipe.steps.map((step, i) => (
+            <div key={i} className="step-row">
+              <span className="text-muted font-mono">{step.startTime}</span>
+              <span className="font-medium">{step.stageName}</span>
+              <span className="text-right font-mono">{step.pourVolumeMl}</span>
+              <span className="text-right font-mono">{step.targetWeightG}</span>
+            </div>
           ))}
         </div>
       </div>
-      <ChevronRight className="card-chevron" size={24} />
-    </button>
-  );
-}
 
-function CoffeeSketch({ type }: { type: string }) {
-  const label = type === "espresso" ? "ESP" : type === "signature" ? "MILK" : type === "black" ? "V60" : "BREW";
-  return (
-    <div className="sketch-mark">
-      <Coffee size={34} />
-      <span>{label}</span>
+      {recipe.notes && (
+        <p className="mt-4 text-sm text-muted italic">{recipe.notes}</p>
+      )}
     </div>
   );
 }
 
-function PastryPreview({ items, onSelect, onShowAll }: { items: LibraryItem[]; onSelect: (item: LibraryItem) => void; onShowAll: () => void }) {
-  if (!items.length) return null;
+function BatchBrewDetail({ recipe }: { recipe: BatchBrewRecipe }) {
   return (
-    <section className="pastry-preview">
-      <div className="preview-header">
-        <h2>Кондитерка</h2>
-        <button onClick={onShowAll}>
-          Смотреть все <ChevronRight size={18} />
-        </button>
-      </div>
-      <div className="pastry-list">
-        {items.map((item) => (
-          <button key={item.id} className="pastry-row" onClick={() => onSelect(item)}>
-            <img src={item.imageUrl || "/brand/interior-2.jpg"} alt="" />
-            <span>
-              <b>{item.title}</b>
-              <small>{item.subtitle}</small>
-            </span>
-            <strong>{item.price ? `${item.price} ₽` : ""}</strong>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
+    <div>
+      <h2 className="text-2xl font-black text-coal">{recipe.lotName}</h2>
+      <p className="text-muted text-sm mt-1">{recipe.roaster}</p>
 
-function PastryCard({ item, onSelect }: { item: LibraryItem; onSelect: (item: LibraryItem) => void }) {
-  return (
-    <button className="pastry-card" onClick={() => onSelect(item)}>
-      <img src={item.imageUrl || "/brand/interior-2.jpg"} alt="" />
-      <div>
-        <h2>{item.title}</h2>
-        <p>{item.subtitle}</p>
-        <span>{item.price ? `${item.price} ₽` : "цена не указана"}</span>
-      </div>
-    </button>
-  );
-}
-
-function ChecklistCard({ item, onSelect }: { item: LibraryItem; onSelect: (item: LibraryItem) => void }) {
-  return (
-    <button className="checklist-card" onClick={() => onSelect(item)}>
-      <div className="check-icon">
-        <CheckSquare size={24} />
-      </div>
-      <div>
-        <h2>{item.title}</h2>
-        <p>{item.description}</p>
-        <span>{item.steps.length} пунктов</span>
-      </div>
-      <ChevronRight size={22} />
-    </button>
-  );
-}
-
-function DetailSheet({ item, onClose }: { item: LibraryItem; onClose: () => void }) {
-  return (
-    <div className="sheet-backdrop" role="dialog" aria-modal="true">
-      <section className="sheet">
-        <div className="sheet-handle" />
-        <button className="close-button" onClick={onClose} aria-label="Закрыть">
-          <X size={22} />
-        </button>
-        {item.category === "pastry" && <img className="detail-image" src={item.imageUrl || "/brand/interior-2.jpg"} alt="" />}
-        <div className="detail-kicker">
-          <Sparkles size={16} />
-          <span>{item.category === "coffee" ? "технологическая карта" : item.category === "pastry" ? "карточка товара" : "сменный чек-лист"}</span>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="bg-linen rounded-xl p-3">
+          <span className="text-xs text-muted uppercase font-bold">Термос</span>
+          <p className="text-lg font-bold mt-1">{recipe.thermosVolumeMl} мл</p>
         </div>
-        <h2>{item.title}</h2>
-        <p className="detail-subtitle">{item.subtitle}</p>
-        <p className="detail-description">{item.description}</p>
-        {!!item.specs.length && (
-          <div className="detail-specs">
-            {item.specs.map((spec) => (
-              <div key={spec.label}>
-                <span>{spec.label}</span>
-                <strong>{spec.value}</strong>
-              </div>
-            ))}
-          </div>
-        )}
-        {!!item.steps.length && (
-          <ol className="steps-list">
-            {item.steps.map((step) => (
-              <li key={step}>{step}</li>
+        <div className="bg-linen rounded-xl p-3">
+          <span className="text-xs text-muted uppercase font-bold">Закладка</span>
+          <p className="text-lg font-bold mt-1">{recipe.coffeeDoseG} г</p>
+        </div>
+        <div className="bg-linen rounded-xl p-3">
+          <span className="text-xs text-muted uppercase font-bold">Ratio</span>
+          <p className="text-lg font-bold mt-1">{recipe.ratio}</p>
+        </div>
+        <div className="bg-linen rounded-xl p-3">
+          <span className="text-xs text-muted uppercase font-bold">Вода</span>
+          <p className="text-lg font-bold mt-1">{recipe.waterVolumeMl} мл</p>
+        </div>
+      </div>
+
+      <div className="mt-4 bg-accent/10 rounded-xl p-3">
+        <span className="text-xs text-muted uppercase font-bold">Программа</span>
+        <p className="font-semibold mt-1">{recipe.brewerProgram}</p>
+      </div>
+
+      {recipe.notes && (
+        <p className="mt-4 text-sm text-muted italic">{recipe.notes}</p>
+      )}
+    </div>
+  );
+}
+
+function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
+  return (
+    <div>
+      {ttk.imageUrl && (
+        <img
+          src={ttk.imageUrl}
+          alt=""
+          className="w-full h-48 object-cover rounded-xl mb-4"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
+
+      <h2 className="text-2xl font-black text-coal">{ttk.drinkName}</h2>
+      <p className="text-muted text-sm mt-1">
+        {ttk.category === "hot" ? "Горячий" : "Холодный"} · {ttk.servingVolumeMl} мл · {ttk.vessel}
+      </p>
+
+      {/* Ingredients */}
+      <div className="mt-6">
+        <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Ингредиенты</h3>
+        <div className="bg-linen rounded-xl p-3">
+          {ttk.ingredients.map((ing, i) => (
+            <div key={i} className="ingredient-row">
+              <span className="font-medium">{ing.ingredientName}</span>
+              <span className="font-mono font-semibold text-right">{ing.exactAmount}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Service steps */}
+      {ttk.serviceSteps.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Приготовление</h3>
+          <ol className="space-y-2">
+            {ttk.serviceSteps.map((step, i) => (
+              <li key={i} className="flex gap-3 text-sm">
+                <span className="font-bold text-accent flex-shrink-0 w-5">{i + 1}.</span>
+                <span>{step}</span>
+              </li>
             ))}
           </ol>
-        )}
-        {item.category === "coffee" && (
-          <div className="tool-grid">
-        <BrewTimer item={item} />
-        <ExtractionTool item={item} />
-          </div>
-        )}
-      </section>
+        </div>
+      )}
+
+      {ttk.allergensAndComposition && (
+        <div className="mt-4 p-3 bg-linen rounded-xl text-sm">
+          <span className="font-bold text-xs text-muted uppercase">Состав и аллергены</span>
+          <p className="mt-1">{ttk.allergensAndComposition}</p>
+        </div>
+      )}
+
+      {ttk.storageConditions && (
+        <div className="mt-2 p-3 bg-linen rounded-xl text-sm">
+          <span className="font-bold text-xs text-muted uppercase">Условия хранения</span>
+          <p className="mt-1">{ttk.storageConditions}</p>
+        </div>
+      )}
+
+      {ttk.notes && (
+        <p className="mt-4 text-sm text-muted italic">{ttk.notes}</p>
+      )}
     </div>
   );
 }
 
-function BrewTimer({ item }: { item: LibraryItem }) {
-  const total = getBrewTime(item);
-  const [seconds, setSeconds] = useState(0);
-  const [running, setRunning] = useState(false);
+// === Recipe Form Modal ===
+function RecipeFormModal({
+  type,
+  initial,
+  onClose,
+  onSave,
+}: {
+  type: TabId;
+  initial: any | null;
+  onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current >= total) {
-          window.clearInterval(timer);
-          setRunning(false);
-          return total;
-        }
-        return current + 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [running, total]);
+  // Brew Bar form
+  const [lotName, setLotName] = useState(initial?.lotName ?? "");
+  const [roaster, setRoaster] = useState(initial?.roaster ?? "");
+  const [method, setMethod] = useState(initial?.method ?? "v60");
+  const [grindClicks, setGrindClicks] = useState(initial?.grindClicks ?? "");
+  const [coffeeWeightG, setCoffeeWeightG] = useState(initial?.coffeeWeightG ?? 15);
+  const [waterVolumeMl, setWaterVolumeMl] = useState(initial?.waterVolumeMl ?? 250);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
 
-  const progress = total ? Math.min(100, Math.round((seconds / total) * 100)) : 0;
+  // Batch Brew extra
+  const [thermosVolumeMl, setThermosVolumeMl] = useState(initial?.thermosVolumeMl ?? 1000);
+  const [coffeeDoseG, setCoffeeDoseG] = useState(initial?.coffeeDoseG ?? 60);
+  const [ratio, setRatio] = useState(initial?.ratio ?? "60 g/l");
+  const [brewerProgram, setBrewerProgram] = useState(initial?.brewerProgram ?? "");
 
-  return (
-    <section className="coffee-tool">
-      <div className="timer-ring" style={{ background: `conic-gradient(var(--green) ${progress}%, #eadfce ${progress}% 100%)` }}>
-        <div>
-          <strong>{formatTime(seconds)}</strong>
-          <span>{formatTime(total)}</span>
-        </div>
-      </div>
-      <div className="tool-actions">
-        <button type="button" onClick={() => setRunning((value) => !value)}>
-          {running ? "Пауза" : seconds > 0 ? "Продолжить" : "Старт"}
-        </button>
-        <button type="button" onClick={() => {
-          setRunning(false);
-          setSeconds(0);
-        }}>
-          Сброс
-        </button>
-      </div>
-    </section>
+  // Signature TTK extra
+  const [drinkName, setDrinkName] = useState(initial?.drinkName ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "hot");
+  const [servingVolumeMl, setServingVolumeMl] = useState(initial?.servingVolumeMl ?? 240);
+  const [vessel, setVessel] = useState(initial?.vessel ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [ingredientText, setIngredientText] = useState(
+    initial?.ingredients?.map((i: Ingredient) => `${i.ingredientName}: ${i.exactAmount}`).join("\n") ?? ""
   );
-}
+  const [serviceStepText, setServiceStepText] = useState(
+    initial?.serviceSteps?.join("\n") ?? ""
+  );
+  const [allergens, setAllergens] = useState(initial?.allergensAndComposition ?? "");
+  const [storage, setStorage] = useState(initial?.storageConditions ?? "");
 
-function ExtractionTool({ item }: { item: LibraryItem }) {
-  const [dose, setDose] = useState(getSpecNumber(item, "Кофе") || 18);
-  const [beverageWeight, setBeverageWeight] = useState(getSpecNumber(item, "Выход") || 36);
-  const [tds, setTds] = useState(1.35);
-  const [result, setResult] = useState<{ extraction: number; status: string } | null>(null);
-  const [error, setError] = useState("");
+  // Brew Bar steps
+  const [steps, setSteps] = useState<BrewBarStep[]>(initial?.steps ?? []);
 
-  async function runCalculation() {
-    setError("");
+  function addStep() {
+    setSteps([...steps, { startTime: "0:00", stageName: "", pourVolumeMl: 0, targetWeightG: 0 }]);
+  }
+
+  function updateStep(i: number, field: keyof BrewBarStep, value: string | number) {
+    const updated = [...steps];
+    (updated[i] as any)[field] = value;
+    setSteps(updated);
+  }
+
+  function removeStep(i: number) {
+    setSteps(steps.filter((_, idx) => idx !== i));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
     try {
-      const calculated = await calculateExtraction({ beverageWeight, tds, dose });
-      setResult(calculated);
-    } catch {
-      const fallback = Math.round(((beverageWeight * tds) / dose) * 100) / 100;
-      setResult({ extraction: fallback, status: fallback >= 18 && fallback <= 22 ? "within_spec" : "out_of_limits" });
-      setError("Расчет выполнен локально");
+      if (type === "brew_bar") {
+        await onSave({
+          lotName, roaster, method, grindClicks,
+          coffeeWeightG, waterVolumeMl, steps, notes,
+        });
+      } else if (type === "batch_brew") {
+        await onSave({
+          lotName, roaster, thermosVolumeMl, coffeeDoseG,
+          ratio, waterVolumeMl, brewerProgram, notes,
+        });
+      } else {
+        const ingredients = ingredientText
+          .split("\n")
+          .filter(Boolean)
+          .map((line: string) => {
+            const [name, amount] = line.split(":").map((s: string) => s.trim());
+            return { ingredientName: name, exactAmount: amount };
+          });
+        const serviceSteps = serviceStepText.split("\n").filter(Boolean);
+        await onSave({
+          drinkName, category, servingVolumeMl, vessel, imageUrl,
+          ingredients, serviceSteps,
+          allergensAndComposition: allergens,
+          storageConditions: storage,
+          notes,
+        });
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <section className="coffee-tool extraction-tool">
-      <div className="tool-title">
-        <b>Экстракция</b>
-        <span>{result ? `${result.extraction}%` : "Golden Cup"}</span>
-      </div>
-      <div className="mini-inputs">
-        <label>
-          Доза
-          <input type="number" value={dose} onChange={(event) => setDose(Number(event.target.value))} />
-        </label>
-        <label>
-          Выход
-          <input type="number" value={beverageWeight} onChange={(event) => setBeverageWeight(Number(event.target.value))} />
-        </label>
-        <label>
-          TDS
-          <input type="number" step="0.01" value={tds} onChange={(event) => setTds(Number(event.target.value))} />
-        </label>
-      </div>
-      <button type="button" onClick={runCalculation}>Рассчитать</button>
-      {result && <p className={result.status === "within_spec" ? "calc-ok" : "calc-warn"}>{result.status === "within_spec" ? "В целевом диапазоне" : "Нужно проверить рецепт"}</p>}
-      {error && <small>{error}</small>}
-    </section>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={onClose}>
+      <form
+        className="bg-white rounded-t-2xl w-full max-w-lg max-h-[85dvh] overflow-y-auto sheet-animate"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-4 h-14 border-b border-line">
+          <button type="button" onClick={onClose} className="p-2 text-muted">
+            <X size={22} />
+          </button>
+          <h2 className="font-bold text-lg">
+            {initial ? "Редактировать" : "Новый рецепт"}
+          </h2>
+          <div className="w-10" />
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Common fields */}
+          {type !== "signature_ttk" && (
+            <>
+              <Field label="Название лота" value={lotName} onChange={setLotName} required />
+              <Field label="Обжарщик" value={roaster} onChange={setRoaster} />
+            </>
+          )}
+
+          {type === "signature_ttk" && (
+            <>
+              <Field label="Название напитка" value={drinkName} onChange={setDrinkName} required />
+              <Select
+                label="Категория"
+                value={category}
+                onChange={setCategory}
+                options={[
+                  { value: "hot", label: "Горячий" },
+                  { value: "cold", label: "Холодный" },
+                ]}
+              />
+              <Field label="Объем подачи (мл)" type="number" value={servingVolumeMl} onChange={setServingVolumeMl} />
+              <Field label="Посуда" value={vessel} onChange={setVessel} />
+              <Field label="URL фото" value={imageUrl} onChange={setImageUrl} placeholder="https://..." />
+            </>
+          )}
+
+          {type === "brew_bar" && (
+            <>
+              <Select
+                label="Метод"
+                value={method}
+                onChange={setMethod}
+                options={[
+                  { value: "v60", label: "V60" },
+                  { value: "switch", label: "Switch" },
+                  { value: "orea", label: "Orea" },
+                ]}
+              />
+              <Field label="Помол (клики)" value={grindClicks} onChange={setGrindClicks} />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Кофе (г)" type="number" value={coffeeWeightG} onChange={setCoffeeWeightG} />
+                <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
+              </div>
+
+              {/* Steps editor */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-muted uppercase">Шаги заваривания</span>
+                  <button type="button" onClick={addStep} className="text-xs text-accent font-bold">
+                    + Добавить шаг
+                  </button>
+                </div>
+                {steps.map((step, i) => (
+                  <div key={i} className="flex gap-2 items-center mb-2">
+                    <input
+                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
+                      placeholder="0:00"
+                      value={step.startTime}
+                      onChange={(e) => updateStep(i, "startTime", e.target.value)}
+                    />
+                    <input
+                      className="flex-1 px-2 py-1.5 bg-linen rounded-lg text-sm"
+                      placeholder="Bloom"
+                      value={step.stageName}
+                      onChange={(e) => updateStep(i, "stageName", e.target.value)}
+                    />
+                    <input
+                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
+                      placeholder="мл"
+                      type="number"
+                      value={step.pourVolumeMl || ""}
+                      onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
+                    />
+                    <input
+                      className="w-16 px-2 py-1.5 bg-linen rounded-lg text-sm font-mono"
+                      placeholder="г"
+                      type="number"
+                      value={step.targetWeightG || ""}
+                      onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
+                    />
+                    <button type="button" onClick={() => removeStep(i)} className="p-1 text-red">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {type === "batch_brew" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Термос (мл)" type="number" value={thermosVolumeMl} onChange={setThermosVolumeMl} />
+                <Field label="Закладка (г)" type="number" value={coffeeDoseG} onChange={setCoffeeDoseG} />
+              </div>
+              <Field label="Ratio" value={ratio} onChange={setRatio} />
+              <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
+              <Field label="Программа" value={brewerProgram} onChange={setBrewerProgram} />
+            </>
+          )}
+
+          {type === "signature_ttk" && (
+            <>
+              <div>
+                <label className="text-xs font-bold text-muted uppercase block mb-1">Ингредиенты (название: граммовка)</label>
+                <textarea
+                  className="w-full px-3 py-2 bg-linen rounded-xl text-sm min-h-[80px] resize-none"
+                  value={ingredientText}
+                  onChange={(e) => setIngredientText(e.target.value)}
+                  placeholder="Двойной эспрессо: 34 г&#10;Indian Tonic: 200 г"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-muted uppercase block mb-1">Технология (по пунктам)</label>
+                <textarea
+                  className="w-full px-3 py-2 bg-linen rounded-xl text-sm min-h-[80px] resize-none"
+                  value={serviceStepText}
+                  onChange={(e) => setServiceStepText(e.target.value)}
+                  placeholder="1. Наполнить стакан льдом&#10;2. Влить тоник по стенке"
+                />
+              </div>
+              <Field label="Состав и аллергены" value={allergens} onChange={setAllergens} />
+              <Field label="Условия хранения" value={storage} onChange={setStorage} />
+            </>
+          )}
+
+          <Field label="Заметки" value={notes} onChange={setNotes} />
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50"
+          >
+            {saving ? "Сохранение..." : initial ? "Сохранить изменения" : "Создать"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
-function getSpecNumber(item: LibraryItem, label: string) {
-  const spec = item.specs.find((candidate) => candidate.label.toLowerCase() === label.toLowerCase());
-  if (!spec) return 0;
-  const match = spec.value.replace(",", ".").match(/\d+(\.\d+)?/);
-  return match ? Number(match[0]) : 0;
-}
-
-function getBrewTime(item: LibraryItem) {
-  const raw = item.specs.find((spec) => spec.label.toLowerCase().includes("время"))?.value || "";
-  const minuteMatch = raw.match(/(\d+):(\d+)/);
-  if (minuteMatch) return Number(minuteMatch[1]) * 60 + Number(minuteMatch[2]);
-  const secondMatch = raw.match(/\d+/);
-  return secondMatch ? Number(secondMatch[0]) : 180;
-}
-
-function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-function CreateSheet({
-  activeCategory,
-  onClose,
-  onSubmit
+// === Form helpers ===
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required,
+  placeholder,
 }: {
-  activeCategory: Category;
-  onClose: () => void;
-  onSubmit: (payload: Omit<LibraryItem, "id">) => void;
+  label: string;
+  value: string | number;
+  onChange: (v: any) => void;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
 }) {
-  const [form, setForm] = useState<Omit<LibraryItem, "id">>({ ...emptyForm, category: activeCategory });
-  const [specText, setSpecText] = useState("Кофе: 18 г\nВода: 250 г\nВремя: 2:30");
-  const [stepText, setStepText] = useState("");
-
-  function update<K extends keyof Omit<LibraryItem, "id">>(key: K, value: Omit<LibraryItem, "id">[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function handleImage(file?: File) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => update("imageUrl", String(reader.result));
-    reader.readAsDataURL(file);
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    const specs = specText
-      .split("\n")
-      .map((line) => line.split(":"))
-      .filter(([label, value]) => label?.trim() && value?.trim())
-      .map(([label, value]) => ({ label: label.trim(), value: value.trim() }));
-    const steps = stepText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    onSubmit({ ...form, specs, steps, tags: form.tags.filter(Boolean) });
-  }
-
   return (
-    <div className="sheet-backdrop" role="dialog" aria-modal="true">
-      <form className="sheet create-sheet" onSubmit={submit}>
-        <div className="sheet-handle" />
-        <button type="button" className="close-button" onClick={onClose} aria-label="Закрыть">
-          <X size={22} />
-        </button>
-        <h2>Новая карточка</h2>
-        <div className="form-grid">
-          <label>
-            Раздел
-            <select value={form.category} onChange={(event) => update("category", event.target.value as Category)}>
-              <option value="coffee">Кофе</option>
-              <option value="pastry">Кондитерка</option>
-              <option value="checklist">Чек-листы</option>
-            </select>
-          </label>
-          <label>
-            Тип
-            <input value={form.subcategory} onChange={(event) => update("subcategory", event.target.value)} placeholder="black / espresso / cake" />
-          </label>
-          <label className="wide">
-            Название
-            <input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Например, Фокачча" required />
-          </label>
-          <label className="wide">
-            Короткое описание
-            <input value={form.subtitle} onChange={(event) => update("subtitle", event.target.value)} placeholder="С чем продавать, вкус, роль" />
-          </label>
-          <label className="wide">
-            Описание
-            <textarea value={form.description} onChange={(event) => update("description", event.target.value)} rows={3} />
-          </label>
-          <label>
-            Цена
-            <input type="number" value={form.price ?? ""} onChange={(event) => update("price", event.target.value ? Number(event.target.value) : null)} />
-          </label>
-          <label>
-            Фото
-            <span className="file-input">
-              <ImagePlus size={18} />
-              Загрузить
-              <input type="file" accept="image/*" onChange={(event) => handleImage(event.target.files?.[0])} />
-            </span>
-          </label>
-          <label className="wide">
-            Параметры
-            <textarea value={specText} onChange={(event) => setSpecText(event.target.value)} rows={3} />
-          </label>
-          <label className="wide">
-            Шаги
-            <textarea value={stepText} onChange={(event) => setStepText(event.target.value)} rows={4} placeholder="Каждый пункт с новой строки" />
-          </label>
-        </div>
-        <button className="submit-button" type="submit">
-          Создать карточку
-        </button>
-      </form>
-    </div>
+    <label className="block">
+      <span className="text-xs font-bold text-muted uppercase block mb-1">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
+        required={required}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 bg-linen rounded-xl text-sm"
+      />
+    </label>
+  );
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold text-muted uppercase block mb-1">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-linen rounded-xl text-sm appearance-none"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 

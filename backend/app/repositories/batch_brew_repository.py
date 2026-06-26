@@ -40,6 +40,17 @@ class BatchBrewRepository:
         await self.session.refresh(recipe)
         return recipe
 
+    async def replace(self, recipe_id: str, data: dict[str, Any]) -> BatchBrewRecipe | None:
+        """Full replacement (PUT) — delete and recreate."""
+        existing = await self.get(recipe_id)
+        if not existing:
+            return None
+        await self.session.execute(
+            delete(BatchBrewRecipe).where(BatchBrewRecipe.id == recipe_id)
+        )
+        await self.session.flush()
+        return await self.create({**data, "id": recipe_id})
+
     async def update(self, recipe_id: str, data: dict[str, Any]) -> BatchBrewRecipe | None:
         existing = await self.get(recipe_id)
         if not existing:
