@@ -22,6 +22,8 @@ class Item(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     subtitle: Mapped[str] = mapped_column(String, default="")
     description: Mapped[str] = mapped_column(Text, default="")
+    composition: Mapped[str] = mapped_column(Text, default="")
+    shelf_life: Mapped[str] = mapped_column(String, default="")
     price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_url: Mapped[str] = mapped_column(String, default="")
     specs: Mapped[str] = mapped_column(Text, default="[]")

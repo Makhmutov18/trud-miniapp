@@ -18,6 +18,7 @@ SEED_BREW_BAR_RECIPES: list[dict] = [
             {"startTime": "0:30", "stageName": "Вливание", "pourVolumeMl": 105, "targetWeightG": 150, "comment": "Круговыми движениями"},
             {"startTime": "1:15", "stageName": "Вливание", "pourVolumeMl": 100, "targetWeightG": 250, "comment": "По центру"},
         ],
+        "cupDescription": "Чайная чашка: жасмин, лайм, медовая сладость.",
         "notes": "Clean cup for the brew bar.",
     },
     {
@@ -37,6 +38,7 @@ SEED_BREW_BAR_RECIPES: list[dict] = [
             {"startTime": "0:40", "stageName": "Вливание", "pourVolumeMl": 210, "targetWeightG": 260, "comment": "Открыть на 2:00"},
             {"startTime": "2:10", "stageName": "Слив", "pourVolumeMl": 0, "targetWeightG": 260, "comment": ""},
         ],
+        "cupDescription": "Сочная чашка: черная смородина, красный апельсин, карамель.",
         "notes": "Use for juicy lots and slower service moments.",
     },
 ]

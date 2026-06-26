@@ -26,8 +26,11 @@ class BatchBrewRepository:
 
     async def create(self, data: dict[str, Any]) -> BatchBrewRecipe:
         recipe = BatchBrewRecipe(
+            folder_id=data.get("folderId") or data.get("folder_id") or None,
             lot_name=data.get("lotName") or data.get("lot_name") or "",
             roaster=data.get("roaster", ""),
+            thermos_volume_ml=data.get("thermosVolumeMl") or data.get("thermos_volume_ml") or 0,
+            ratio=data.get("ratio", ""),
             brewer_program=data.get("brewerProgram") or data.get("brewer_program") or "",
             coffee_dose_g=data.get("coffeeDoseG") or data.get("coffee_dose_g") or 0,
             grind_clicks=data.get("grindClicks") or data.get("grind_clicks") or "",
@@ -40,15 +43,11 @@ class BatchBrewRepository:
         return recipe
 
     async def replace(self, recipe_id: str, data: dict[str, Any]) -> BatchBrewRecipe | None:
-        """Full replacement (PUT) — delete and recreate."""
+        """Full replacement (PUT) without changing the record id."""
         existing = await self.get(recipe_id)
         if not existing:
             return None
-        await self.session.execute(
-            delete(BatchBrewRecipe).where(BatchBrewRecipe.id == recipe_id)
-        )
-        await self.session.flush()
-        return await self.create({**data, "id": recipe_id})
+        return await self.update(recipe_id, data)
 
     async def update(self, recipe_id: str, data: dict[str, Any]) -> BatchBrewRecipe | None:
         existing = await self.get(recipe_id)
@@ -56,10 +55,16 @@ class BatchBrewRepository:
             return None
 
         update_data = {}
+        if "folderId" in data:
+            update_data["folder_id"] = data["folderId"] or None
         if "lotName" in data:
             update_data["lot_name"] = data["lotName"]
         if "roaster" in data:
             update_data["roaster"] = data["roaster"]
+        if "thermosVolumeMl" in data:
+            update_data["thermos_volume_ml"] = data["thermosVolumeMl"] or 0
+        if "ratio" in data:
+            update_data["ratio"] = data["ratio"]
         if "brewerProgram" in data:
             update_data["brewer_program"] = data["brewerProgram"]
         if "coffeeDoseG" in data:

@@ -17,6 +17,7 @@ class BrewBarRecipe(Base):
     __tablename__ = "brew_bar_recipes"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    folder_id: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     lot_name: Mapped[str] = mapped_column(String, nullable=False)
     roaster: Mapped[str] = mapped_column(String, default="")
     origin: Mapped[str] = mapped_column(String, default="")
@@ -29,6 +30,7 @@ class BrewBarRecipe(Base):
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     water_ppm: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     steps: Mapped[str] = mapped_column(Text, default="[]")
+    cup_description: Mapped[str] = mapped_column(Text, default="")
     notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(String, default=now_iso)
     updated_at: Mapped[str] = mapped_column(String, default=now_iso)

@@ -15,6 +15,7 @@ def _brew_bar_to_response(row: Any) -> dict[str, Any]:
     return {
         "id": row.id,
         "type": "brew_bar",
+        "folderId": getattr(row, "folder_id", None),
         "lotName": row.lot_name,
         "roaster": row.roaster,
         "origin": row.origin,
@@ -27,6 +28,7 @@ def _brew_bar_to_response(row: Any) -> dict[str, Any]:
         "temperature": row.temperature,
         "waterPpm": row.water_ppm,
         "steps": json.loads(row.steps) if row.steps else [],
+        "cupDescription": getattr(row, "cup_description", ""),
         "notes": row.notes,
         "createdAt": row.created_at,
         "updatedAt": row.updated_at,
@@ -37,8 +39,11 @@ def _batch_brew_to_response(row: Any) -> dict[str, Any]:
     return {
         "id": row.id,
         "type": "batch_brew",
+        "folderId": getattr(row, "folder_id", None),
         "lotName": row.lot_name,
         "roaster": row.roaster,
+        "thermosVolumeMl": getattr(row, "thermos_volume_ml", 0),
+        "ratio": getattr(row, "ratio", ""),
         "brewerProgram": row.brewer_program,
         "coffeeDoseG": row.coffee_dose_g,
         "grindClicks": row.grind_clicks,
@@ -53,6 +58,7 @@ def _signature_ttk_to_response(row: Any) -> dict[str, Any]:
     return {
         "id": row.id,
         "type": "signature_ttk",
+        "folderId": getattr(row, "folder_id", None),
         "drinkName": row.drink_name,
         "category": row.category,
         "servingVolumeMl": row.serving_volume_ml,
@@ -109,7 +115,7 @@ class RecipeService:
         return _brew_bar_to_response(recipe) if recipe else None
 
     async def update_brew_bar(self, recipe_id: str, payload: BrewBarUpdate) -> dict[str, Any] | None:
-        recipe = await self.brew_bar_repo.update(recipe_id, payload.model_dump(exclude_none=True, mode="json"))
+        recipe = await self.brew_bar_repo.update(recipe_id, payload.model_dump(exclude_unset=True, mode="json"))
         return _brew_bar_to_response(recipe) if recipe else None
 
     async def delete_brew_bar(self, recipe_id: str) -> bool:
@@ -132,7 +138,7 @@ class RecipeService:
         return _batch_brew_to_response(recipe) if recipe else None
 
     async def update_batch_brew(self, recipe_id: str, payload: BatchBrewUpdate) -> dict[str, Any] | None:
-        recipe = await self.batch_brew_repo.update(recipe_id, payload.model_dump(exclude_none=True, mode="json"))
+        recipe = await self.batch_brew_repo.update(recipe_id, payload.model_dump(exclude_unset=True, mode="json"))
         return _batch_brew_to_response(recipe) if recipe else None
 
     async def delete_batch_brew(self, recipe_id: str) -> bool:
@@ -155,7 +161,7 @@ class RecipeService:
         return _signature_ttk_to_response(ttk) if ttk else None
 
     async def update_signature_ttk(self, ttk_id: str, payload: SignatureTtkUpdate) -> dict[str, Any] | None:
-        ttk = await self.signature_ttk_repo.update(ttk_id, payload.model_dump(exclude_none=True, mode="json"))
+        ttk = await self.signature_ttk_repo.update(ttk_id, payload.model_dump(exclude_unset=True, mode="json"))
         return _signature_ttk_to_response(ttk) if ttk else None
 
     async def delete_signature_ttk(self, ttk_id: str) -> bool:

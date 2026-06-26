@@ -81,7 +81,7 @@ async def send_start_message(chat_id: int) -> None:
     app_url = settings.web_app_url or settings.public_base_url
     await telegram_api("sendMessage", {
         "chat_id": chat_id,
-        "text": "Открывай базу бара: рецепты, кондитерка и чек-листы в одном месте.",
+        "text": "Открывай базу бара: рецепты, булки и чек-листы в одном месте.",
         "reply_markup": {
             "inline_keyboard": [
                 [{"text": "Открыть ТРУД", "web_app": {"url": app_url}}]

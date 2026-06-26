@@ -16,6 +16,8 @@ def _row_to_response(row: Any) -> dict[str, Any]:
         "title": row.title,
         "subtitle": row.subtitle,
         "description": row.description,
+        "composition": getattr(row, "composition", ""),
+        "shelfLife": getattr(row, "shelf_life", ""),
         "price": row.price,
         "imageUrl": row.image_url,
         "specs": json.loads(row.specs) if row.specs else [],

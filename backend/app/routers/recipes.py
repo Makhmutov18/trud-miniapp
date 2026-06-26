@@ -84,6 +84,16 @@ async def update_brew_bar(
     return recipe
 
 
+@router.delete("/brew-bar/{recipe_id}")
+async def delete_brew_bar(
+    recipe_id: str,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    if not await service.delete_brew_bar(recipe_id):
+        raise HTTPException(status_code=404, detail="Brew bar recipe not found")
+    return {"ok": True}
+
+
 # === Batch Brew ===
 
 @router.get("/batch-brew")
@@ -134,6 +144,16 @@ async def update_batch_brew(
     if not recipe:
         raise HTTPException(status_code=404, detail="Batch brew recipe not found")
     return recipe
+
+
+@router.delete("/batch-brew/{recipe_id}")
+async def delete_batch_brew(
+    recipe_id: str,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    if not await service.delete_batch_brew(recipe_id):
+        raise HTTPException(status_code=404, detail="Batch brew recipe not found")
+    return {"ok": True}
 
 
 # === Signature TTK ===
@@ -187,3 +207,13 @@ async def update_signature_ttk(
     if not ttk:
         raise HTTPException(status_code=404, detail="Signature TTK not found")
     return ttk
+
+
+@router.delete("/signature-ttk/{ttk_id}")
+async def delete_signature_ttk(
+    ttk_id: str,
+    service: RecipeService = Depends(get_recipe_service),
+):
+    if not await service.delete_signature_ttk(ttk_id):
+        raise HTTPException(status_code=404, detail="Signature TTK not found")
+    return {"ok": True}

@@ -17,6 +17,7 @@ class SignatureTtk(Base):
     __tablename__ = "signature_drinks_ttk"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    folder_id: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     drink_name: Mapped[str] = mapped_column(String, nullable=False)
     category: Mapped[str] = mapped_column(String, nullable=False)
     serving_volume_ml: Mapped[int] = mapped_column(Integer, nullable=False)

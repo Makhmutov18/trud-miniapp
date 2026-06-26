@@ -33,6 +33,7 @@ class SignatureTtkRepository:
 
     async def create(self, data: dict[str, Any]) -> SignatureTtk:
         ttk = SignatureTtk(
+            folder_id=data.get("folderId") or data.get("folder_id") or None,
             drink_name=data.get("drinkName") or data.get("drink_name") or "",
             category=data.get("category", "hot"),
             serving_volume_ml=data.get("servingVolumeMl") or data.get("serving_volume_ml") or 0,
@@ -50,15 +51,11 @@ class SignatureTtkRepository:
         return ttk
 
     async def replace(self, ttk_id: str, data: dict[str, Any]) -> SignatureTtk | None:
-        """Full replacement (PUT) — delete and recreate."""
+        """Full replacement (PUT) without changing the record id."""
         existing = await self.get(ttk_id)
         if not existing:
             return None
-        await self.session.execute(
-            delete(SignatureTtk).where(SignatureTtk.id == ttk_id)
-        )
-        await self.session.flush()
-        return await self.create({**data, "id": ttk_id})
+        return await self.update(ttk_id, data)
 
     async def update(self, ttk_id: str, data: dict[str, Any]) -> SignatureTtk | None:
         existing = await self.get(ttk_id)
@@ -66,6 +63,8 @@ class SignatureTtkRepository:
             return None
 
         update_data = {}
+        if "folderId" in data:
+            update_data["folder_id"] = data["folderId"] or None
         if "drinkName" in data:
             update_data["drink_name"] = data["drinkName"]
         if "category" in data:

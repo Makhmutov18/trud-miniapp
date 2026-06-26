@@ -12,6 +12,7 @@ class BrewBarStep(BaseModel):
 
 
 class BrewBarCreate(BaseModel):
+    folderId: str | None = None
     lotName: str = Field(min_length=1, max_length=120)
     roaster: str = ""
     origin: str = ""
@@ -24,10 +25,12 @@ class BrewBarCreate(BaseModel):
     temperature: float | None = None
     waterPpm: int | None = None
     steps: list[BrewBarStep] = Field(default_factory=list)
+    cupDescription: str = ""
     notes: str = ""
 
 
 class BrewBarUpdate(BaseModel):
+    folderId: str | None = None
     lotName: str | None = Field(default=None, min_length=1, max_length=120)
     roaster: str | None = None
     origin: str | None = None
@@ -40,12 +43,14 @@ class BrewBarUpdate(BaseModel):
     temperature: float | None = None
     waterPpm: int | None = None
     steps: list[BrewBarStep] | None = None
+    cupDescription: str | None = None
     notes: str | None = None
 
 
 class BrewBarResponse(BaseModel):
     id: str
     type: str = "brew_bar"
+    folderId: str | None = None
     lotName: str
     roaster: str
     origin: str
@@ -58,6 +63,7 @@ class BrewBarResponse(BaseModel):
     temperature: float | None = None
     waterPpm: int | None = None
     steps: list[BrewBarStep]
+    cupDescription: str
     notes: str
     createdAt: str
     updatedAt: str

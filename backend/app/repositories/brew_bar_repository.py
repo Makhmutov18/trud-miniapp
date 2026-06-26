@@ -42,6 +42,7 @@ class BrewBarRepository:
 
     async def create(self, data: dict[str, Any]) -> BrewBarRecipe:
         recipe = BrewBarRecipe(
+            folder_id=data.get("folderId") or data.get("folder_id") or None,
             lot_name=data.get("lotName") or data.get("lot_name") or "",
             roaster=data.get("roaster", ""),
             origin=data.get("origin", ""),
@@ -54,6 +55,7 @@ class BrewBarRepository:
             temperature=data.get("temperature"),
             water_ppm=data.get("waterPpm"),
             steps=encode(data.get("steps", [])),
+            cup_description=data.get("cupDescription") or data.get("cup_description") or "",
             notes=data.get("notes", ""),
         )
         self.session.add(recipe)
@@ -62,15 +64,11 @@ class BrewBarRepository:
         return recipe
 
     async def replace(self, recipe_id: str, data: dict[str, Any]) -> BrewBarRecipe | None:
-        """Full replacement (PUT) — delete and recreate."""
+        """Full replacement (PUT) without changing the record id."""
         existing = await self.get(recipe_id)
         if not existing:
             return None
-        await self.session.execute(
-            delete(BrewBarRecipe).where(BrewBarRecipe.id == recipe_id)
-        )
-        await self.session.flush()
-        return await self.create({**data, "id": recipe_id})
+        return await self.update(recipe_id, data)
 
     async def update(self, recipe_id: str, data: dict[str, Any]) -> BrewBarRecipe | None:
         existing = await self.get(recipe_id)
@@ -78,6 +76,8 @@ class BrewBarRepository:
             return None
 
         update_data = {}
+        if "folderId" in data:
+            update_data["folder_id"] = data["folderId"] or None
         if "lotName" in data:
             update_data["lot_name"] = data["lotName"]
         if "roaster" in data:
@@ -102,6 +102,8 @@ class BrewBarRepository:
             update_data["water_ppm"] = data["waterPpm"]
         if "steps" in data:
             update_data["steps"] = encode(data["steps"])
+        if "cupDescription" in data:
+            update_data["cup_description"] = data["cupDescription"]
         if "notes" in data:
             update_data["notes"] = data["notes"]
 

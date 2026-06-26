@@ -34,6 +34,7 @@ export type BrewBarRecipe = {
   temperature: number | null;
   waterPpm: number | null;
   steps: BrewBarStep[];
+  cupDescription: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +46,8 @@ export type BatchBrewRecipe = {
   folderId: string | null;
   lotName: string;
   roaster: string;
+  thermosVolumeMl?: number;
+  ratio?: string;
   brewerProgram: string;
   coffeeDoseG: number;
   grindClicks: string;
@@ -97,6 +100,8 @@ export type ItemResponse = {
   title: string;
   subtitle: string;
   description: string;
+  composition: string;
+  shelfLife: string;
   price: number | null;
   imageUrl: string;
   specs: ItemSpec[];
@@ -113,6 +118,8 @@ export type ItemCreatePayload = {
   title: string;
   subtitle?: string;
   description?: string;
+  composition?: string;
+  shelfLife?: string;
   price?: number | null;
   imageUrl?: string;
   specs?: ItemSpec[];
@@ -121,9 +128,9 @@ export type ItemCreatePayload = {
   isFavorite?: boolean;
 };
 
-// Helper: strip client-only fields from payload
-function stripClientFields<T extends Record<string, any>>(data: T): Omit<T, "folderId"> {
-  const { folderId, ...rest } = data;
+// Helper: strip readonly response fields before sending form data back to the API.
+function stripClientFields<T extends Record<string, any>>(data: T): Record<string, any> {
+  const { id, type, createdAt, updatedAt, ...rest } = data;
   return rest;
 }
 

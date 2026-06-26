@@ -45,6 +45,8 @@ class ItemRepository:
             title=data.get("title", "").strip(),
             subtitle=data.get("subtitle", "").strip(),
             description=data.get("description", "").strip(),
+            composition=(data.get("composition") or "").strip(),
+            shelf_life=(data.get("shelfLife") or data.get("shelf_life") or "").strip(),
             price=data.get("price"),
             image_url=data.get("imageUrl") or data.get("image_url") or "",
             specs=encode(data.get("specs", [])),
@@ -73,6 +75,10 @@ class ItemRepository:
             update_data["subtitle"] = data["subtitle"].strip()
         if "description" in data:
             update_data["description"] = data["description"].strip()
+        if "composition" in data:
+            update_data["composition"] = data["composition"].strip()
+        if "shelfLife" in data or "shelf_life" in data:
+            update_data["shelf_life"] = (data.get("shelfLife") or data.get("shelf_life") or "").strip()
         if "price" in data:
             update_data["price"] = data["price"]
         if "imageUrl" in data or "image_url" in data:

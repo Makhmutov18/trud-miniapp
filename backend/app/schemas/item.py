@@ -14,6 +14,8 @@ class ItemCreate(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     subtitle: str = ""
     description: str = ""
+    composition: str = ""
+    shelfLife: str = ""
     price: int | None = Field(default=None, ge=0)
     imageUrl: str = ""
     specs: list[Spec] = Field(default_factory=list)
@@ -28,6 +30,8 @@ class ItemUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=100)
     subtitle: str | None = None
     description: str | None = None
+    composition: str | None = None
+    shelfLife: str | None = None
     price: int | None = Field(default=None, ge=0)
     imageUrl: str | None = None
     specs: list[Spec] | None = None
@@ -43,6 +47,8 @@ class ItemResponse(BaseModel):
     title: str
     subtitle: str
     description: str
+    composition: str
+    shelfLife: str
     price: int | None
     imageUrl: str
     specs: list[Spec]

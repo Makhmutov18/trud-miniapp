@@ -9,6 +9,7 @@ class Ingredient(BaseModel):
 
 
 class SignatureTtkCreate(BaseModel):
+    folderId: str | None = None
     drinkName: str = Field(min_length=1, max_length=120)
     category: str = Field(default="hot", pattern="^(hot|cold)$")
     servingVolumeMl: int = Field(gt=0)
@@ -22,6 +23,7 @@ class SignatureTtkCreate(BaseModel):
 
 
 class SignatureTtkUpdate(BaseModel):
+    folderId: str | None = None
     drinkName: str | None = Field(default=None, min_length=1, max_length=120)
     category: str | None = Field(default=None, pattern="^(hot|cold)$")
     servingVolumeMl: int | None = Field(default=None, gt=0)
@@ -37,6 +39,7 @@ class SignatureTtkUpdate(BaseModel):
 class SignatureTtkResponse(BaseModel):
     id: str
     type: str = "signature_ttk"
+    folderId: str | None = None
     drinkName: str
     category: str
     servingVolumeMl: int
