@@ -643,7 +643,10 @@ function BrewBarCard({
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-lg text-coal truncate">{recipe.lotName}</h3>
           <p className="text-sm text-muted mt-0.5">
-            {recipe.roaster} · {recipe.method.toUpperCase()} · {recipe.grindClicks}
+            {recipe.roaster}{recipe.origin ? ` · ${recipe.origin}` : ""} · {recipe.method.toUpperCase()}
+          </p>
+          <p className="text-xs text-muted mt-0.5">
+            {recipe.grinder && `${recipe.grinder} · `}{recipe.grindClicks}{recipe.temperature ? ` · ${recipe.temperature}°C` : ""}
           </p>
         </div>
         <button
@@ -698,9 +701,9 @@ function BatchBrewCard({
         </button>
       </div>
       <div className="flex gap-4 mt-3 text-sm text-muted flex-wrap">
-        <span>Термос {recipe.thermosVolumeMl} мл</span>
-        <span>{recipe.coffeeDoseG} г · {recipe.ratio}</span>
-        <span className="text-coal font-semibold">{recipe.brewerProgram}</span>
+        <span>{recipe.coffeeDoseG} г · {recipe.grindClicks}</span>
+        <span className="text-coal font-semibold">{recipe.waterVolumeMl} мл</span>
+        <span className="text-accent font-semibold">{recipe.brewerProgram}</span>
       </div>
     </button>
   );
@@ -889,43 +892,43 @@ function BrewBarDetail({ recipe }: { recipe: BrewBarRecipe }) {
   return (
     <div>
       <h2 className="text-2xl font-black text-coal">{recipe.lotName}</h2>
-      <p className="text-muted text-sm mt-1">{recipe.roaster} · {recipe.method.toUpperCase()} · {recipe.grindClicks}</p>
-      <div className="flex gap-4 mt-3 text-sm">
+      <p className="text-muted text-sm mt-1">
+        {recipe.roaster}{recipe.origin ? ` · ${recipe.origin}` : ""}
+      </p>
+      {recipe.processing && (
+        <p className="text-muted text-xs mt-0.5">{recipe.processing}</p>
+      )}
+      <div className="flex flex-wrap gap-2 mt-3 text-sm">
         <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.coffeeWeightG} г кофе</span>
         <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.waterVolumeMl} мл воды</span>
+        {recipe.temperature && <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.temperature}°C</span>}
+        {recipe.waterPpm && <span className="bg-linen px-3 py-1 rounded-full font-semibold">{recipe.waterPpm} ppm</span>}
       </div>
+      <p className="text-xs text-muted mt-2">
+        {recipe.method.toUpperCase()}{recipe.grinder ? ` · ${recipe.grinder}` : ""}{recipe.grindClicks ? ` · ${recipe.grindClicks}` : ""}
+      </p>
 
       <div className="mt-6">
-        <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Таймлайн</h3>
-        <div className="flex items-center gap-2 mb-4">
-          {recipe.steps.map((step, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div
-                className="timeline-dot"
-                style={{
-                  backgroundColor:
-                    step.stageName.toLowerCase().includes("bloom") ? "#8E96A7" :
-                    step.stageName.toLowerCase().includes("yellow") ? "#C89B55" : "#C84B31",
-                }}
-              />
-              {i < recipe.steps.length - 1 && <div className="w-6 h-0.5 bg-line" />}
-            </div>
-          ))}
-        </div>
+        <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Схема проливов</h3>
 
         <div className="bg-linen rounded-xl p-3">
           <div className="step-row font-bold text-xs text-muted uppercase">
-            <span>Step</span>
+            <span>Время</span>
             <span>Стадия</span>
-            <span className="text-right">Вод.</span>
-            <span className="text-right">Мес.</span>
+            <span className="text-right">Вода</span>
+            <span className="text-right">Вес</span>
           </div>
           {recipe.steps.map((step, i) => (
-            <div key={i} className="step-row">
-              <span className="text-muted font-mono">{step.startTime}</span>
-              <span className="font-medium">{step.stageName}</span>
-              <span className="text-right font-mono">{step.pourVolumeMl}</span>
-              <span className="text-right font-mono">{step.targetWeightG}</span>
+            <div key={i}>
+              <div className="step-row">
+                <span className="text-muted font-mono">{step.startTime}</span>
+                <span className="font-medium">{step.stageName}</span>
+                <span className="text-right font-mono">{step.pourVolumeMl}</span>
+                <span className="text-right font-mono">{step.targetWeightG}</span>
+              </div>
+              {step.comment && (
+                <p className="text-xs text-muted italic pl-1 pb-1">{step.comment}</p>
+              )}
             </div>
           ))}
         </div>
@@ -946,30 +949,28 @@ function BatchBrewDetail({ recipe }: { recipe: BatchBrewRecipe }) {
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="bg-linen rounded-xl p-3">
-          <span className="text-xs text-muted uppercase font-bold">Термос</span>
-          <p className="text-lg font-bold mt-1">{recipe.thermosVolumeMl} мл</p>
+          <span className="text-xs text-muted uppercase font-bold">Программа</span>
+          <p className="text-lg font-bold mt-1">{recipe.brewerProgram}</p>
         </div>
         <div className="bg-linen rounded-xl p-3">
           <span className="text-xs text-muted uppercase font-bold">Закладка</span>
           <p className="text-lg font-bold mt-1">{recipe.coffeeDoseG} г</p>
         </div>
         <div className="bg-linen rounded-xl p-3">
-          <span className="text-xs text-muted uppercase font-bold">Ratio</span>
-          <p className="text-lg font-bold mt-1">{recipe.ratio}</p>
+          <span className="text-xs text-muted uppercase font-bold">Помол</span>
+          <p className="text-lg font-bold mt-1">{recipe.grindClicks || "—"}</p>
         </div>
         <div className="bg-linen rounded-xl p-3">
-          <span className="text-xs text-muted uppercase font-bold">Вода</span>
+          <span className="text-xs text-muted uppercase font-bold">Выход</span>
           <p className="text-lg font-bold mt-1">{recipe.waterVolumeMl} мл</p>
         </div>
       </div>
 
-      <div className="mt-4 bg-accent/10 rounded-xl p-3">
-        <span className="text-xs text-muted uppercase font-bold">Программа</span>
-        <p className="font-semibold mt-1">{recipe.brewerProgram}</p>
-      </div>
-
       {recipe.notes && (
-        <p className="mt-4 text-sm text-muted italic">{recipe.notes}</p>
+        <div className="mt-4">
+          <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-1">Описание вкуса</h3>
+          <p className="text-sm text-muted italic">{recipe.notes}</p>
+        </div>
       )}
     </div>
   );
@@ -1141,16 +1142,19 @@ function RecipeFormModal({
   // Brew Bar form
   const [lotName, setLotName] = useState(initial?.lotName ?? "");
   const [roaster, setRoaster] = useState(initial?.roaster ?? "");
+  const [origin, setOrigin] = useState(initial?.origin ?? "");
+  const [processing, setProcessing] = useState(initial?.processing ?? "");
   const [method, setMethod] = useState(initial?.method ?? "v60");
+  const [grinder, setGrinder] = useState(initial?.grinder ?? "");
   const [grindClicks, setGrindClicks] = useState(initial?.grindClicks ?? "");
   const [coffeeWeightG, setCoffeeWeightG] = useState(initial?.coffeeWeightG ?? 15);
   const [waterVolumeMl, setWaterVolumeMl] = useState(initial?.waterVolumeMl ?? 250);
+  const [temperature, setTemperature] = useState(initial?.temperature ?? "");
+  const [waterPpm, setWaterPpm] = useState(initial?.waterPpm ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
 
   // Batch Brew extra
-  const [thermosVolumeMl, setThermosVolumeMl] = useState(initial?.thermosVolumeMl ?? 1000);
   const [coffeeDoseG, setCoffeeDoseG] = useState(initial?.coffeeDoseG ?? 60);
-  const [ratio, setRatio] = useState(initial?.ratio ?? "60 g/l");
   const [brewerProgram, setBrewerProgram] = useState(initial?.brewerProgram ?? "");
 
   // Signature TTK extra
@@ -1233,13 +1237,35 @@ function RecipeFormModal({
   }
 
   function addStep() {
-    setSteps([...steps, { startTime: "0:00", stageName: "", pourVolumeMl: 0, targetWeightG: 0 }]);
+    setSteps([...steps, { startTime: "0:00", stageName: "", pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
   }
 
   function updateStep(i: number, field: keyof BrewBarStep, value: string | number) {
     const updated = [...steps];
     (updated[i] as any)[field] = value;
     setSteps(updated);
+  }
+
+  // Smart time input: auto-insert colon after minutes
+  function handleTimeChange(i: number, raw: string) {
+    // Remove all non-digit characters
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 0) {
+      updateStep(i, "startTime", "");
+      return;
+    }
+    // Format as M:SS or MM:SS
+    let formatted: string;
+    if (digits.length <= 1) {
+      formatted = `0:0${digits}`;
+    } else if (digits.length === 2) {
+      formatted = `0:${digits}`;
+    } else if (digits.length === 3) {
+      formatted = `${digits[0]}:${digits.slice(1)}`;
+    } else {
+      formatted = `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+    }
+    updateStep(i, "startTime", formatted);
   }
 
   function removeStep(i: number) {
@@ -1252,15 +1278,19 @@ function RecipeFormModal({
     try {
       if (type === "brew_bar") {
         await onSave({
-          folderId: folderId || null,
-          lotName, roaster, method, grindClicks,
-          coffeeWeightG, waterVolumeMl, steps, notes,
+          lotName, roaster, origin, processing,
+          method, grinder, grindClicks,
+          coffeeWeightG, waterVolumeMl,
+          temperature: temperature !== "" ? Number(temperature) : null,
+          waterPpm: waterPpm !== "" ? Number(waterPpm) : null,
+          steps, notes,
         });
       } else if (type === "batch_brew") {
         await onSave({
-          folderId: folderId || null,
-          lotName, roaster, thermosVolumeMl, coffeeDoseG,
-          ratio, waterVolumeMl, brewerProgram, notes,
+          lotName, roaster,
+          brewerProgram, coffeeDoseG,
+          grindClicks, waterVolumeMl,
+          notes,
         });
       } else {
         const mappedIngredients = ingredients
@@ -1268,7 +1298,6 @@ function RecipeFormModal({
           .map((ing) => ({ ingredientName: ing.name, exactAmount: ing.amount }));
         const mappedSteps = serviceSteps.filter(Boolean);
         await onSave({
-          folderId: folderId || null,
           drinkName, category, servingVolumeMl, vessel,
           imageUrl: photoBase64 || initial?.imageUrl || "",
           ingredients: mappedIngredients,
@@ -1337,27 +1366,6 @@ function RecipeFormModal({
               <Field label="Объем подачи (мл)" type="number" value={servingVolumeMl} onChange={setServingVolumeMl} />
               <Field label="Посуда" value={vessel} onChange={setVessel} />
 
-              {/* Photo upload */}
-              <div>
-                <span className="text-xs font-bold text-muted uppercase block mb-1">Фото подачи</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  id="photo-upload"
-                  onChange={handlePhotoUpload}
-                />
-                <label htmlFor="photo-upload" className="block cursor-pointer">
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="" className="w-full h-40 object-cover rounded-xl" />
-                  ) : (
-                    <div className="w-full h-32 bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
-                      Нажмите, чтобы загрузить фото подачи
-                    </div>
-                  )}
-                </label>
-              </div>
-
               {/* Dynamic ingredients */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -1418,101 +1426,143 @@ function RecipeFormModal({
                   + Добавить шаг технологии
                 </button>
               </div>
+
+              {/* Photo upload — в самом низу */}
+              <div>
+                <span className="text-xs font-bold text-muted uppercase block mb-1">Фото подачи</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="photo-upload"
+                  onChange={handlePhotoUpload}
+                />
+                <label htmlFor="photo-upload" className="block cursor-pointer">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="" className="w-full aspect-[4/3] object-cover rounded-xl" />
+                  ) : (
+                    <div className="w-full aspect-[4/3] bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
+                      Нажмите, чтобы загрузить фото подачи
+                    </div>
+                  )}
+                </label>
+              </div>
             </>
           )}
 
           {type === "brew_bar" && (
             <>
-              <Select
-                label="Метод"
-                value={method}
-                onChange={setMethod}
-                options={[
-                  { value: "v60", label: "V60" },
-                  { value: "switch", label: "Switch" },
-                  { value: "orea", label: "Orea" },
-                ]}
-              />
-              <Field label="Помол (клики)" value={grindClicks} onChange={setGrindClicks} />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Кофе (г)" type="number" value={coffeeWeightG} onChange={setCoffeeWeightG} />
-                <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
+              {/* Блок: Профиль зерна */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Профиль зерна</h3>
+                <Field label="Название лота" value={lotName} onChange={setLotName} required />
+                <Field label="Обжарщик" value={roaster} onChange={setRoaster} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Сорт / Регион" value={origin} onChange={setOrigin} />
+                  <Field label="Обработка" value={processing} onChange={setProcessing} />
+                </div>
               </div>
 
-              {/* Steps editor */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-muted uppercase">Шаги заваривания</span>
+              {/* Блок: Параметры пуровера */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Параметры пуровера</h3>
+                <Select
+                  label="Тип воронки"
+                  value={method}
+                  onChange={setMethod}
+                  options={[
+                    { value: "v60", label: "V60" },
+                    { value: "switch", label: "Switch" },
+                    { value: "orea", label: "Orea" },
+                  ]}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Кофемолка" value={grinder} onChange={setGrinder} />
+                  <Field label="Помол" value={grindClicks} onChange={setGrindClicks} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Кофе (гр)" type="number" value={coffeeWeightG} onChange={setCoffeeWeightG} />
+                  <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Температура (°C)" type="number" value={temperature} onChange={setTemperature} />
+                  <Field label="Вода (ppm)" type="number" value={waterPpm} onChange={setWaterPpm} />
+                </div>
+              </div>
+
+              {/* Блок: Схема проливов */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Схема проливов</h3>
+                  <button
+                    type="button"
+                    onClick={addStep}
+                    className="text-xs font-semibold text-accent transition-colors duration-200 hover:text-accent/80"
+                  >
+                    + Добавить шаг
+                  </button>
                 </div>
                 {steps.map((step, i) => (
-                  <div key={i} className="bg-linen rounded-xl p-3 mb-2 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-xs text-muted block mb-0.5">Время</span>
-                        <input
-                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
-                          placeholder="0:00"
-                          value={step.startTime}
-                          onChange={(e) => updateStep(i, "startTime", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted block mb-0.5">Название стадии</span>
-                        <input
-                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm"
-                          placeholder="Bloom, Pour 1, Pour 2"
-                          value={step.stageName}
-                          onChange={(e) => updateStep(i, "stageName", e.target.value)}
-                        />
-                      </div>
+                  <div key={i} className="pb-2 border-b border-line last:border-b-0">
+                    <div className="flex items-center gap-2">
+                      <input
+                        className="w-[60px] px-2 py-1.5 bg-linen rounded-lg text-sm font-mono text-center"
+                        placeholder="0:00"
+                        value={step.startTime}
+                        onChange={(e) => handleTimeChange(i, e.target.value)}
+                      />
+                      <input
+                        className="w-[60px] px-2 py-1.5 bg-linen rounded-lg text-sm font-mono text-center"
+                        placeholder="мл"
+                        type="number"
+                        value={step.pourVolumeMl || ""}
+                        onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
+                      />
+                      <select
+                        className="flex-1 px-2 py-1.5 bg-linen rounded-lg text-sm"
+                        value={step.stageName}
+                        onChange={(e) => updateStep(i, "stageName", e.target.value)}
+                        title="Стадия"
+                      >
+                        <option value="">Стадия</option>
+                        <option value="Блум">Блум</option>
+                        <option value="Вливание">Вливание</option>
+                      </select>
+                      <button type="button" onClick={() => removeStep(i)} className="p-1.5 text-red flex-shrink-0" title="Удалить шаг">
+                        <X size={16} />
+                      </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-xs text-muted block mb-0.5">Вода (мл)</span>
-                        <input
-                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
-                          placeholder="мл"
-                          type="number"
-                          value={step.pourVolumeMl || ""}
-                          onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
-                        />
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted block mb-0.5">Общий вес (г)</span>
-                        <input
-                          className="w-full px-2 py-1.5 bg-white rounded-lg text-sm font-mono"
-                          placeholder="г"
-                          type="number"
-                          value={step.targetWeightG || ""}
-                          onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => removeStep(i)} className="text-xs text-red font-semibold">
-                      Удалить шаг
-                    </button>
+                    <input
+                      className="w-full mt-1 px-2 py-1 text-xs text-muted bg-transparent border-b border-line"
+                      placeholder="Комментарий к шагу (необязательно)"
+                      value={step.comment}
+                      onChange={(e) => updateStep(i, "comment", e.target.value)}
+                    />
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={addStep}
-                  className="w-full bg-white border-2 border-dashed border-line rounded-xl py-3 text-accent font-semibold text-sm transition-colors duration-200 hover:border-accent"
-                >
-                  + Добавить шаг заваривания
-                </button>
+                {steps.length === 0 && (
+                  <p className="text-xs text-muted text-center py-2">Нет шагов. Нажмите «+ Добавить шаг»</p>
+                )}
               </div>
             </>
           )}
 
           {type === "batch_brew" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Термос (мл)" type="number" value={thermosVolumeMl} onChange={setThermosVolumeMl} />
-                <Field label="Закладка (г)" type="number" value={coffeeDoseG} onChange={setCoffeeDoseG} />
+              <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Параметры батч-брю</h3>
+                <Field label="Название лота" value={lotName} onChange={setLotName} required />
+                <Field label="Обжарщик" value={roaster} onChange={setRoaster} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Программа автомата" value={brewerProgram} onChange={setBrewerProgram} />
+                  <Field label="Закладка кофе (гр)" type="number" value={coffeeDoseG} onChange={setCoffeeDoseG} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Помол" value={grindClicks} onChange={setGrindClicks} />
+                  <Field label="Выход (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
+                </div>
+                <Field label="Заметки / Описание вкуса" value={notes} onChange={setNotes} />
               </div>
-              <Field label="Ratio" value={ratio} onChange={setRatio} />
-              <Field label="Вода (мл)" type="number" value={waterVolumeMl} onChange={setWaterVolumeMl} />
-              <Field label="Программа" value={brewerProgram} onChange={setBrewerProgram} />
             </>
           )}
 
@@ -1523,7 +1573,7 @@ function RecipeFormModal({
             </>
           )}
 
-          <Field label="Заметки" value={notes} onChange={setNotes} />
+          {type !== "batch_brew" && <Field label="Заметки" value={notes} onChange={setNotes} />}
 
           <button
             type="submit"
@@ -1601,14 +1651,17 @@ function ItemFormModal({
     e.preventDefault();
     setSaving(true);
     try {
-      await onSave({
+      const payload: any = {
         category,
         title,
         subtitle,
         description,
         price: category === "pastry" ? price : null,
-        imageUrl: photoBase64 || initial?.imageUrl || "",
-      });
+      };
+      if (category === "pastry") {
+        payload.imageUrl = photoBase64 || initial?.imageUrl || "";
+      }
+      await onSave(payload);
     } finally {
       setSaving(false);
     }
@@ -1639,20 +1692,22 @@ function ItemFormModal({
             <Field label="Цена (₽)" type="number" value={price ?? ""} onChange={(v) => setPrice(v === "" ? null : Number(v))} />
           )}
 
-          {/* Photo upload */}
-          <div>
-            <span className="text-xs font-bold text-muted uppercase block mb-1">Фото</span>
-            <input type="file" accept="image/*" className="hidden" id="item-photo-upload" onChange={handlePhotoUpload} />
-            <label htmlFor="item-photo-upload" className="block cursor-pointer">
-              {photoPreview ? (
-                <img src={photoPreview} alt="" className="w-full h-40 object-cover rounded-xl" />
-              ) : (
-                <div className="w-full h-32 bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
-                  Нажмите, чтобы загрузить фото
-                </div>
-              )}
-            </label>
-          </div>
+          {/* Photo upload — только для кондитерки */}
+          {category === "pastry" && (
+            <div>
+              <span className="text-xs font-bold text-muted uppercase block mb-1">Фото</span>
+              <input type="file" accept="image/*" className="hidden" id="item-photo-upload" onChange={handlePhotoUpload} />
+              <label htmlFor="item-photo-upload" className="block cursor-pointer">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="" className="w-full aspect-[4/3] object-cover rounded-xl" />
+                ) : (
+                  <div className="w-full aspect-[4/3] bg-linen rounded-xl flex items-center justify-center text-sm text-muted font-semibold border-2 border-dashed border-line transition-colors duration-200 hover:border-accent">
+                    Нажмите, чтобы загрузить фото
+                  </div>
+                )}
+              </label>
+            </div>
+          )}
 
           <button
             type="submit"

@@ -15,6 +15,7 @@ export type BrewBarStep = {
   stageName: string;
   pourVolumeMl: number;
   targetWeightG: number;
+  comment: string;
 };
 
 export type BrewBarRecipe = {
@@ -23,10 +24,15 @@ export type BrewBarRecipe = {
   folderId: string | null;
   lotName: string;
   roaster: string;
+  origin: string;
+  processing: string;
   method: BrewMethod;
+  grinder: string;
   grindClicks: string;
   coffeeWeightG: number;
   waterVolumeMl: number;
+  temperature: number | null;
+  waterPpm: number | null;
   steps: BrewBarStep[];
   notes: string;
   createdAt: string;
@@ -39,11 +45,10 @@ export type BatchBrewRecipe = {
   folderId: string | null;
   lotName: string;
   roaster: string;
-  thermosVolumeMl: number;
-  coffeeDoseG: number;
-  ratio: string;
-  waterVolumeMl: number;
   brewerProgram: string;
+  coffeeDoseG: number;
+  grindClicks: string;
+  waterVolumeMl: number;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -116,6 +121,12 @@ export type ItemCreatePayload = {
   isFavorite?: boolean;
 };
 
+// Helper: strip client-only fields from payload
+function stripClientFields<T extends Record<string, any>>(data: T): Omit<T, "folderId"> {
+  const { folderId, ...rest } = data;
+  return rest;
+}
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 // === Brew Bar ===
@@ -131,7 +142,7 @@ export async function createBrewBar(payload: Omit<BrewBarRecipe, "id" | "type" |
   const response = await fetch(`${API_BASE}/api/recipes/brew-bar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось создать рецепт");
   return response.json();
@@ -141,7 +152,7 @@ export async function updateBrewBar(recipeId: string, payload: Partial<BrewBarRe
   const response = await fetch(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось обновить рецепт");
   return response.json();
@@ -151,7 +162,7 @@ export async function replaceBrewBar(recipeId: string, payload: Omit<BrewBarReci
   const response = await fetch(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось заменить рецепт");
   return response.json();
@@ -173,7 +184,7 @@ export async function createBatchBrew(payload: Omit<BatchBrewRecipe, "id" | "typ
   const response = await fetch(`${API_BASE}/api/recipes/batch-brew`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось создать рецепт");
   return response.json();
@@ -183,7 +194,7 @@ export async function updateBatchBrew(recipeId: string, payload: Partial<BatchBr
   const response = await fetch(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось обновить рецепт");
   return response.json();
@@ -193,7 +204,7 @@ export async function replaceBatchBrew(recipeId: string, payload: Omit<BatchBrew
   const response = await fetch(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось заменить рецепт");
   return response.json();
@@ -216,7 +227,7 @@ export async function createSignatureTtk(payload: Omit<SignatureTtk, "id" | "typ
   const response = await fetch(`${API_BASE}/api/recipes/signature-ttk`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось создать ТТК");
   return response.json();
@@ -226,7 +237,7 @@ export async function updateSignatureTtk(ttkId: string, payload: Partial<Signatu
   const response = await fetch(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось обновить ТТК");
   return response.json();
@@ -236,7 +247,7 @@ export async function replaceSignatureTtk(ttkId: string, payload: Omit<Signature
   const response = await fetch(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(stripClientFields(payload)),
   });
   if (!response.ok) throw new Error("Не удалось заменить ТТК");
   return response.json();

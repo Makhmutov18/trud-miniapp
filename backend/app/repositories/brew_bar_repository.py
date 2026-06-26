@@ -44,10 +44,15 @@ class BrewBarRepository:
         recipe = BrewBarRecipe(
             lot_name=data.get("lotName") or data.get("lot_name") or "",
             roaster=data.get("roaster", ""),
+            origin=data.get("origin", ""),
+            processing=data.get("processing", ""),
             method=data.get("method", "v60"),
+            grinder=data.get("grinder", ""),
             grind_clicks=data.get("grindClicks") or data.get("grind_clicks") or "",
             coffee_weight_g=data.get("coffeeWeightG") or data.get("coffee_weight_g") or 0,
             water_volume_ml=data.get("waterVolumeMl") or data.get("water_volume_ml") or 0,
+            temperature=data.get("temperature"),
+            water_ppm=data.get("waterPpm"),
             steps=encode(data.get("steps", [])),
             notes=data.get("notes", ""),
         )
@@ -77,14 +82,24 @@ class BrewBarRepository:
             update_data["lot_name"] = data["lotName"]
         if "roaster" in data:
             update_data["roaster"] = data["roaster"]
+        if "origin" in data:
+            update_data["origin"] = data["origin"]
+        if "processing" in data:
+            update_data["processing"] = data["processing"]
         if "method" in data:
             update_data["method"] = data["method"]
+        if "grinder" in data:
+            update_data["grinder"] = data["grinder"]
         if "grindClicks" in data:
             update_data["grind_clicks"] = data["grindClicks"]
         if "coffeeWeightG" in data:
             update_data["coffee_weight_g"] = data["coffeeWeightG"]
         if "waterVolumeMl" in data:
             update_data["water_volume_ml"] = data["waterVolumeMl"]
+        if "temperature" in data:
+            update_data["temperature"] = data["temperature"]
+        if "waterPpm" in data:
+            update_data["water_ppm"] = data["waterPpm"]
         if "steps" in data:
             update_data["steps"] = encode(data["steps"])
         if "notes" in data:
