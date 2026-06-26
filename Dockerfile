@@ -3,7 +3,9 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend ./
-RUN npm run build
+# Cache-busting: force frontend rebuild on every deploy
+COPY .build-id /tmp/.build-id
+RUN echo "Frontend build: $(cat /tmp/.build-id) — $(date)" && npm run build
 
 FROM python:3.14-slim
 ENV PYTHONDONTWRITEBYTECODE=1
