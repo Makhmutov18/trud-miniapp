@@ -156,9 +156,11 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 function withTelegramInitData(headers?: HeadersInit, method?: string): Headers {
   const merged = new Headers(headers);
+  const app = getTelegramApp();
   const initData = getTelegramApp()?.initData;
   const upperMethod = method?.toUpperCase();
   if (upperMethod && ["POST", "PATCH", "PUT", "DELETE"].includes(upperMethod)) {
+    console.info(`Telegram WebApp detected: ${app ? "yes" : "no"}`);
     console.info(`Telegram initData present: ${initData ? "yes" : "no"}`);
   }
   if (initData) {
