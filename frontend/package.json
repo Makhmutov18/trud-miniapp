@@ -14,6 +14,7 @@
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-easy-crop": "^6.0.2",
     "typescript": "latest",
     "vite": "latest"
   },
@@ -21,6 +22,7 @@
     "@tailwindcss/vite": "^4.3.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/react-easy-crop": "^1.16.0",
     "playwright": "^1.61.1",
     "tailwindcss": "^4.3.1"
   }

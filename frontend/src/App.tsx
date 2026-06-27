@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Cropper, { type Area } from "react-easy-crop";
 import {
   Home,
   Croissant,
@@ -85,13 +86,6 @@ function normalizeFolderId<T extends { folderId?: string | null }>(item: T): T {
   return { ...item, folderId: item.folderId ?? null };
 }
 
-type PhotoCrop = {
-  zoom: number;
-  x: number;
-  y: number;
-};
-
-const DEFAULT_PHOTO_CROP: PhotoCrop = { zoom: 1, x: 50, y: 50 };
 const PHOTO_CARD_ASPECT = 4 / 3;
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -115,34 +109,21 @@ function loadImage(source: string): Promise<HTMLImageElement> {
   });
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function isDefaultPhotoCrop(crop: PhotoCrop): boolean {
-  return crop.zoom === DEFAULT_PHOTO_CROP.zoom && crop.x === DEFAULT_PHOTO_CROP.x && crop.y === DEFAULT_PHOTO_CROP.y;
-}
-
-async function cropPhotoToCard(source: string, crop: PhotoCrop): Promise<string> {
+async function cropPhotoToCard(source: string, croppedAreaPixels: Area): Promise<string> {
   try {
     const image = await loadImage(source);
-    const outputWidth = 1200;
-    const outputHeight = Math.round(outputWidth / PHOTO_CARD_ASPECT);
-    const scale = Math.max(outputWidth / image.naturalWidth, outputHeight / image.naturalHeight) * crop.zoom;
-    const sourceWidth = outputWidth / scale;
-    const sourceHeight = outputHeight / scale;
-    const maxSourceX = Math.max(0, image.naturalWidth - sourceWidth);
-    const maxSourceY = Math.max(0, image.naturalHeight - sourceHeight);
-    const sourceX = clamp(maxSourceX * (crop.x / 100), 0, maxSourceX);
-    const sourceY = clamp(maxSourceY * (crop.y / 100), 0, maxSourceY);
-
     const canvas = document.createElement("canvas");
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return source;
-
-    context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return source;
+    ctx.drawImage(
+      image,
+      croppedAreaPixels.x, croppedAreaPixels.y,
+      croppedAreaPixels.width, croppedAreaPixels.height,
+      0, 0,
+      croppedAreaPixels.width, croppedAreaPixels.height
+    );
     return canvas.toDataURL("image/jpeg", 0.86);
   } catch {
     return source;
@@ -153,22 +134,19 @@ function PhotoCropEditor({
   id,
   label,
   source,
-  crop,
   emptyText,
   onFileSelected,
-  onCropChange,
+  onCropComplete,
 }: {
   id: string;
   label: string;
   source: string;
-  crop: PhotoCrop;
   emptyText: string;
   onFileSelected: (file: File) => void;
-  onCropChange: (crop: PhotoCrop) => void;
+  onCropComplete: (croppedAreaPixels: Area) => void;
 }) {
-  function updateCrop(field: keyof PhotoCrop, value: number) {
-    onCropChange({ ...crop, [field]: value });
-  }
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
 
   return (
     <div>
@@ -185,17 +163,27 @@ function PhotoCropEditor({
       />
       <label htmlFor={id} className="block cursor-pointer">
         {source ? (
-          <div className="photo-frame photo-crop-stage aspect-[4/3]">
-            <img
-              src={source}
-              alt=""
-              className="photo-crop-image"
+          <div className="photo-frame aspect-[4/3] relative">
+            <Cropper
+              image={source}
+              crop={crop}
+              zoom={zoom}
+              aspect={PHOTO_CARD_ASPECT}
+              cropShape="rect"
+              showGrid={false}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
               style={{
-                objectPosition: `${crop.x}% ${crop.y}%`,
-                transform: `scale(${crop.zoom})`,
+                containerStyle: { borderRadius: "1rem" },
+                cropAreaStyle: {
+                  border: "1px solid rgba(255,255,255,0.72)",
+                  borderRadius: "0.75rem",
+                  boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
+                },
               }}
             />
-            <span className="absolute left-3 bottom-3 rounded-full bg-white/85 px-3 py-1 text-xs font-bold text-coal shadow-sm backdrop-blur">
+            <span className="absolute left-3 bottom-3 z-10 rounded-full bg-white/85 px-3 py-1 text-xs font-bold text-coal shadow-sm backdrop-blur">
               Так будет в карточке
             </span>
           </div>
@@ -212,43 +200,21 @@ function PhotoCropEditor({
             <span>Кадрирование</span>
             <label htmlFor={id} className="cursor-pointer text-accent normal-case">Заменить фото</label>
           </div>
-          <CropSlider label="Масштаб" min={1} max={2.2} step={0.01} value={crop.zoom} onChange={(value) => updateCrop("zoom", value)} />
-          <CropSlider label="Горизонталь" min={0} max={100} step={1} value={crop.x} onChange={(value) => updateCrop("x", value)} />
-          <CropSlider label="Вертикаль" min={0} max={100} step={1} value={crop.y} onChange={(value) => updateCrop("y", value)} />
+          <label className="grid grid-cols-[82px_1fr] items-center gap-3 text-xs font-semibold text-muted">
+            <span>Масштаб</span>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.01}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="photo-crop-range"
+            />
+          </label>
         </div>
       )}
     </div>
-  );
-}
-
-function CropSlider({
-  label,
-  min,
-  max,
-  step,
-  value,
-  onChange,
-}: {
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="grid grid-cols-[82px_1fr] items-center gap-3 text-xs font-semibold text-muted">
-      <span>{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="photo-crop-range"
-      />
-    </label>
   );
 }
 
@@ -1457,7 +1423,7 @@ function RecipeFormModal({
   const [servingVolumeMl, setServingVolumeMl] = useState(initial?.servingVolumeMl ?? 240);
   const [vessel, setVessel] = useState(initial?.vessel ?? "");
   const [photoSource, setPhotoSource] = useState(initial?.imageUrl ?? "");
-  const [photoCrop, setPhotoCrop] = useState<PhotoCrop>(DEFAULT_PHOTO_CROP);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   // Dynamic ingredients (reverse mapping from backend)
   const [ingredients, setIngredients] = useState<{ name: string; amount: string }[]>(
@@ -1475,7 +1441,7 @@ function RecipeFormModal({
 
   async function handlePhotoUpload(file: File) {
     setPhotoSource(await readFileAsDataUrl(file));
-    setPhotoCrop(DEFAULT_PHOTO_CROP);
+    setCroppedAreaPixels(null);
   }
 
   function addIngredient() {
@@ -1573,8 +1539,8 @@ function RecipeFormModal({
           folderId,
           drinkName, category, servingVolumeMl, vessel,
           imageUrl:
-            photoSource && (photoSource !== initial?.imageUrl || !isDefaultPhotoCrop(photoCrop))
-              ? await cropPhotoToCard(photoSource, photoCrop)
+            photoSource && (photoSource !== initial?.imageUrl || croppedAreaPixels)
+              ? await cropPhotoToCard(photoSource, croppedAreaPixels!)
               : initial?.imageUrl || "",
           ingredients: mappedIngredients,
           serviceSteps: mappedSteps,
@@ -1707,10 +1673,9 @@ function RecipeFormModal({
                 id="photo-upload"
                 label="Фото подачи"
                 source={photoSource}
-                crop={photoCrop}
                 emptyText="Нажмите, чтобы загрузить фото подачи"
                 onFileSelected={handlePhotoUpload}
-                onCropChange={setPhotoCrop}
+                onCropComplete={setCroppedAreaPixels}
               />
             </>
           )}
@@ -1893,11 +1858,11 @@ function ItemFormModal({
   const [composition, setComposition] = useState(initial?.composition ?? "");
   const [shelfLife, setShelfLife] = useState(initial?.shelfLife ?? "");
   const [photoSource, setPhotoSource] = useState(initial?.imageUrl ?? "");
-  const [photoCrop, setPhotoCrop] = useState<PhotoCrop>(DEFAULT_PHOTO_CROP);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   async function handlePhotoUpload(file: File) {
     setPhotoSource(await readFileAsDataUrl(file));
-    setPhotoCrop(DEFAULT_PHOTO_CROP);
+    setCroppedAreaPixels(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1915,8 +1880,8 @@ function ItemFormModal({
       };
       if (category === "pastry") {
         payload.imageUrl =
-          photoSource && (photoSource !== initial?.imageUrl || !isDefaultPhotoCrop(photoCrop))
-            ? await cropPhotoToCard(photoSource, photoCrop)
+          photoSource && (photoSource !== initial?.imageUrl || croppedAreaPixels)
+            ? await cropPhotoToCard(photoSource, croppedAreaPixels!)
             : initial?.imageUrl || "";
       }
       await onSave(payload);
@@ -1959,10 +1924,9 @@ function ItemFormModal({
               id="item-photo-upload"
               label="Фото"
               source={photoSource}
-              crop={photoCrop}
               emptyText="Нажмите, чтобы загрузить фото"
               onFileSelected={handlePhotoUpload}
-              onCropChange={setPhotoCrop}
+              onCropComplete={setCroppedAreaPixels}
             />
           )}
 
