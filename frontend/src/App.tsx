@@ -356,21 +356,55 @@ function App() {
   }, [activeTab]);
 
   async function loadAll() {
+    await Promise.all([
+      (async () => {
+        try {
+          const brewBar = await fetchBrewBarRecipes();
+          setBrewBarRecipes(brewBar.map(normalizeFolderId));
+        } catch (error) {
+          console.error("Failed to load brew bar recipes", error);
+        }
+      })(),
+      (async () => {
+        try {
+          const batchBrew = await fetchBatchBrewRecipes();
+          setBatchBrewRecipes(batchBrew.map(normalizeFolderId));
+        } catch (error) {
+          console.error("Failed to load batch brew recipes", error);
+        }
+      })(),
+      (async () => {
+        try {
+          const signature = await fetchSignatureTtks();
+          setSignatureTtks(signature.map(normalizeFolderId));
+        } catch (error) {
+          console.error("Failed to load signature recipes", error);
+        }
+      })(),
+      (async () => {
+        try {
+          const pastry = await fetchItems("pastry");
+          setPastryItems(pastry);
+        } catch (error) {
+          console.error("Failed to load pastry items", error);
+        }
+      })(),
+      (async () => {
+        try {
+          const checklist = await fetchItems("checklist");
+          setChecklistItems(checklist);
+        } catch (error) {
+          console.error("Failed to load checklist items", error);
+        }
+      })(),
+    ]);
+  }
+
+  async function refreshAfterSave() {
     try {
-      const [brewBar, batchBrew, signature, pastry, checklist] = await Promise.all([
-        fetchBrewBarRecipes(),
-        fetchBatchBrewRecipes(),
-        fetchSignatureTtks(),
-        fetchItems("pastry"),
-        fetchItems("checklist"),
-      ]);
-      setBrewBarRecipes(brewBar.map(normalizeFolderId));
-      setBatchBrewRecipes(batchBrew.map(normalizeFolderId));
-      setSignatureTtks(signature.map(normalizeFolderId));
-      setPastryItems(pastry);
-      setChecklistItems(checklist);
-    } catch (error) {
-      console.error("loadAll failed", error);
+      await loadAll();
+    } catch (refreshError) {
+      console.error("Refresh after save failed", refreshError);
     }
   }
 
@@ -390,7 +424,7 @@ function App() {
       if (type === "brew_bar") await deleteBrewBar(id);
       else if (type === "batch_brew") await deleteBatchBrew(id);
       else await deleteSignatureTtk(id);
-      await loadAll();
+      await refreshAfterSave();
       setSelectedRecipe(null);
     } catch {
       alert("Не удалось удалить");
@@ -1108,13 +1142,13 @@ function App() {
                 else await createSignatureTtk(data as any);
               }
               hapticSuccess();
-              await loadAll();
               setIsCreating(false);
               setIsEditing(false);
               setSelectedRecipe(null);
               setCreateRecipeType(null);
               setActiveNav("recipes");
               setActiveTab(recipeType);
+              await refreshAfterSave();
             } catch (error) {
               console.error("Save failed", error);
               alert(error instanceof Error ? error.message : "Ошибка сохранения");
@@ -1150,12 +1184,12 @@ function App() {
                 await createItem(data as any);
               }
               hapticSuccess();
-              await loadAll();
               setIsCreatingItem(false);
               setIsEditingItem(false);
               setSelectedItem(null);
               setCreateItemCategory(null);
               setActiveNav(itemModalCategory === "pastry" ? "pastry" : "checklist");
+              await refreshAfterSave();
             } catch (error) {
               console.error("Save failed", error);
               alert(error instanceof Error ? error.message : "Ошибка сохранения");

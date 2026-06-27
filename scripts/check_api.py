@@ -96,6 +96,11 @@ def print_report(report: dict[str, str]) -> None:
     print(f"* backend reachable: {report['backend_reachable']}")
     print(f"* openapi available: {report['openapi_available']}")
     print(f"* recipes routes registered: {report['recipes_routes_registered']}")
+    print(f"* GET /api/recipes/brew-bar: {report['get_brew_bar']}")
+    print(f"* GET /api/recipes/batch-brew: {report['get_batch_brew']}")
+    print(f"* GET /api/recipes/signature-ttk: {report['get_signature_ttk']}")
+    print(f"* GET /api/items?category=pastry: {report['get_pastry_items']}")
+    print(f"* GET /api/items?category=checklist: {report['get_checklist_items']}")
     print(f"* GET recipes returns JSON: {report['get_recipes_returns_json']}")
     print(f"* POST brew-bar works: {report['post_brew_bar_works']}")
     print(f"* POST pastry works: {report['post_pastry_works']}")
@@ -111,6 +116,11 @@ def main() -> int:
         "backend_reachable": "no",
         "openapi_available": "no",
         "recipes_routes_registered": "no",
+        "get_brew_bar": "no",
+        "get_batch_brew": "no",
+        "get_signature_ttk": "no",
+        "get_pastry_items": "no",
+        "get_checklist_items": "no",
         "get_recipes_returns_json": "no",
         "post_brew_bar_works": "no",
         "post_pastry_works": "no",
@@ -172,40 +182,62 @@ def main() -> int:
 
     report["recipes_routes_registered"] = "yes"
 
-    brew_get_url = make_url(base_url, "/api/recipes/brew-bar")
-    brew_get_status, brew_get_content_type, brew_get_body = request("GET", brew_get_url)
-    if brew_get_status != 200:
-        print(f"FAIL: GET /api/recipes/brew-bar returned status {brew_get_status}")
-        print(brew_get_body[:500])
-        report["likely_problem"] = f"GET /api/recipes/brew-bar returned {brew_get_status}"
-        report["recommended_next_step"] = "check backend router registration and upstream base URL"
-        print_report(report)
+    def check_list_endpoint(path: str, label: str, report_key: str) -> tuple[list[object] | None, int | None, str, str]:
+        status, content_type, body = request("GET", make_url(base_url, path))
+        if status != 200:
+            print(f"FAIL: {label} returned status {status}")
+            if body:
+                print(body[:500])
+            report["likely_problem"] = f"{label} returned {status}"
+            report["recommended_next_step"] = "check backend router registration and upstream base URL"
+            print_report(report)
+            return None, status, content_type, body
+        if "text/html" in content_type.lower() or body_looks_like_html(body):
+            print(f"FAIL: {label} is handled by SPA fallback instead of API router")
+            print(f"content-type: {content_type}")
+            print(body[:500])
+            report["likely_problem"] = f"SPA fallback is handling {path}"
+            report["recommended_next_step"] = "block /api/* from the SPA catch-all and point frontend to the real backend"
+            print_report(report)
+            return None, status, content_type, body
+        try:
+            parsed = parse_json(body)
+            if not isinstance(parsed, list):
+                raise ValueError("Expected list")
+        except Exception:
+            print(f"FAIL: {label} did not return JSON list")
+            print(f"content-type: {content_type}")
+            print(body[:500])
+            report["likely_problem"] = f"{label} returned non-JSON data"
+            report["recommended_next_step"] = "check backend response and upstream proxy target"
+            print_report(report)
+            return None, status, content_type, body
+        report[report_key] = "yes"
+        return parsed, status, content_type, body
+
+    brew_get_json, _, _, _ = check_list_endpoint("/api/recipes/brew-bar", "GET /api/recipes/brew-bar", "get_brew_bar")
+    if brew_get_json is None:
         return 1
 
-    if "text/html" in brew_get_content_type.lower() or body_looks_like_html(brew_get_body):
-        print("FAIL: API request is handled by SPA fallback instead of API router")
-        print(f"content-type: {brew_get_content_type}")
-        print(brew_get_body[:500])
-        report["likely_problem"] = "SPA fallback is handling /api/recipes/brew-bar"
-        report["recommended_next_step"] = "block /api/* from the SPA catch-all and point frontend to the real backend"
-        print_report(report)
+    batch_get_json, _, _, _ = check_list_endpoint("/api/recipes/batch-brew", "GET /api/recipes/batch-brew", "get_batch_brew")
+    if batch_get_json is None:
         return 1
 
-    try:
-        brew_get_json = parse_json(brew_get_body)
-        if not isinstance(brew_get_json, list):
-            raise ValueError("Expected list")
-    except Exception:
-        print("FAIL: GET /api/recipes/brew-bar did not return JSON list")
-        print(f"content-type: {brew_get_content_type}")
-        print(brew_get_body[:500])
-        report["likely_problem"] = "GET /api/recipes/brew-bar returned non-JSON data"
-        report["recommended_next_step"] = "check backend response and upstream proxy target"
-        print_report(report)
+    signature_get_json, _, _, _ = check_list_endpoint("/api/recipes/signature-ttk", "GET /api/recipes/signature-ttk", "get_signature_ttk")
+    if signature_get_json is None:
+        return 1
+
+    pastry_get_json, _, _, _ = check_list_endpoint("/api/items?category=pastry", "GET /api/items?category=pastry", "get_pastry_items")
+    if pastry_get_json is None:
+        return 1
+
+    checklist_get_json, _, _, _ = check_list_endpoint("/api/items?category=checklist", "GET /api/items?category=checklist", "get_checklist_items")
+    if checklist_get_json is None:
         return 1
 
     report["get_recipes_returns_json"] = "yes"
 
+    brew_get_url = make_url(base_url, "/api/recipes/brew-bar")
     brew_post_status, brew_post_content_type, brew_post_body = request(
         "POST",
         make_url(base_url, "/api/recipes/brew-bar"),

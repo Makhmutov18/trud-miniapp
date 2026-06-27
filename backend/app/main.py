@@ -54,6 +54,7 @@ async def ensure_runtime_columns(conn) -> None:
             "folder_id": "VARCHAR",
             "thermos_volume_ml": "INTEGER NOT NULL DEFAULT 0",
             "ratio": "VARCHAR NOT NULL DEFAULT ''",
+            "grind_clicks": "VARCHAR NOT NULL DEFAULT ''",
         },
         "signature_drinks_ttk": {
             "folder_id": "VARCHAR",
