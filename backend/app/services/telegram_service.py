@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 from typing import Any
 from urllib.parse import parse_qsl
 
@@ -9,19 +10,34 @@ import httpx
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 def verify_init_data(init_data: str) -> dict[str, Any] | None:
     """Verify Telegram initData and return user data if valid."""
-    if not settings.bot_token:
+    if not init_data:
+        logger.info("telegram_auth missing_init_data")
         return None
 
-    pairs = dict(parse_qsl(init_data, keep_blank_values=True))
-    received_hash = pairs.pop("hash", None)
+    if not settings.bot_token:
+        logger.info("telegram_auth missing_bot_token")
+        return None
+
+    pairs = parse_qsl(init_data, keep_blank_values=True)
+    received_hash = None
+    filtered_pairs: list[tuple[str, str]] = []
+    for key, value in pairs:
+        if key == "hash":
+            received_hash = value
+            continue
+        filtered_pairs.append((key, value))
+
     if not received_hash:
+        logger.info("telegram_auth missing_hash")
         return None
 
     data_check_string = "\n".join(
-        f"{key}={value}" for key, value in sorted(pairs.items())
+        f"{key}={value}" for key, value in sorted(filtered_pairs)
     )
     secret_key = hmac.new(
         b"WebAppData", settings.bot_token.encode(), hashlib.sha256
@@ -31,10 +47,13 @@ def verify_init_data(init_data: str) -> dict[str, Any] | None:
     ).hexdigest()
 
     if not hmac.compare_digest(calculated_hash, received_hash):
+        logger.info("telegram_auth invalid_signature")
         return None
 
+    logger.info("telegram_auth auth_ok")
+
     # Extract user info from initData
-    user_raw = pairs.get("user")
+    user_raw = next((value for key, value in filtered_pairs if key == "user"), None)
     if user_raw:
         import json
         try:

@@ -5,9 +5,18 @@ import os
 from pydantic_settings import BaseSettings
 
 
+def _resolve_bot_token() -> str:
+    """Resolve Telegram bot token with production-friendly fallback priority."""
+    for env_name in ("TRUD_BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "BOT_TOKEN"):
+        value = os.environ.get(env_name)
+        if value:
+            return value
+    return ""
+
+
 class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./trud-local.db"
-    bot_token: str = ""
+    bot_token: str = _resolve_bot_token()
     public_base_url: str = ""
     web_app_url: str = ""
     webhook_secret: str = "trud-local-dev"

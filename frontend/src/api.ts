@@ -154,9 +154,13 @@ function normalizeSignatureTtk(data: SignatureTtk): SignatureTtk {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
-function withTelegramInitData(headers?: HeadersInit): Headers {
+function withTelegramInitData(headers?: HeadersInit, method?: string): Headers {
   const merged = new Headers(headers);
   const initData = getTelegramApp()?.initData;
+  const upperMethod = method?.toUpperCase();
+  if (upperMethod && ["POST", "PATCH", "PUT", "DELETE"].includes(upperMethod)) {
+    console.info(`Telegram initData present: ${initData ? "yes" : "no"}`);
+  }
   if (initData) {
     merged.set("X-Telegram-Init-Data", initData);
   }
@@ -164,9 +168,10 @@ function withTelegramInitData(headers?: HeadersInit): Headers {
 }
 
 async function apiRequest<T>(url: string, init: RequestInit | undefined, fallbackMessage: string): Promise<T> {
+  const method = init?.method?.toUpperCase();
   const response = await fetch(url, {
     ...init,
-    headers: withTelegramInitData(init?.headers),
+    headers: withTelegramInitData(init?.headers, method),
   });
   const contentType = response.headers.get("content-type") || "";
   const body = await response.text();

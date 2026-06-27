@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import secrets
 
 from fastapi import Header, HTTPException
 
 from app.config import settings
 from app.services.telegram_service import verify_init_data
+
+logger = logging.getLogger(__name__)
 
 
 async def get_current_user(x_telegram_init_data: str = Header(...)):
@@ -38,9 +41,11 @@ async def require_mutation_auth(
     if smoke_token and x_trud_smoke_token and secrets.compare_digest(
         smoke_token, x_trud_smoke_token
     ):
+        logger.info("telegram_auth auth_ok")
         return {"authenticated": True, "auth": "smoke"}
 
     if not x_telegram_init_data:
+        logger.info("telegram_auth missing_init_data")
         raise HTTPException(
             status_code=401,
             detail="Missing Telegram authentication",
