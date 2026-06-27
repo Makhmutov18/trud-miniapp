@@ -2031,7 +2031,7 @@ function RecipeFormModal({
           <div className="w-10" />
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-5">
           {/* Folder selector */}
           {folders.length > 0 && (
             <Select
@@ -2143,7 +2143,7 @@ function RecipeFormModal({
           {type === "brew_bar" && (
             <>
               {/* Блок: Профиль зерна */}
-              <div className="premium-card p-4 space-y-3">
+              <div className="premium-card p-4 space-y-3 border border-black/[0.06]">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Профиль зерна</h3>
                 <Field label="Название лота" value={lotName} onChange={setLotName} required />
                 <Field label="Обжарщик" value={roaster} onChange={setRoaster} />
@@ -2154,7 +2154,7 @@ function RecipeFormModal({
               </div>
 
               {/* Блок: Параметры пуровера */}
-              <div className="premium-card p-4 space-y-3">
+              <div className="premium-card p-4 space-y-3 border border-black/[0.06]">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Параметры пуровера</h3>
                 <Select
                   label="Тип воронки"
@@ -2182,13 +2182,13 @@ function RecipeFormModal({
               </div>
 
               {/* Блок: Схема проливов */}
-              <div className="premium-card p-4">
+              <div className="premium-card p-4 border border-black/[0.06]">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Схема проливов</h3>
                 {steps.length === 0 && (
                   <p className="text-xs text-muted text-center py-6">Нет шагов. Добавьте первый шаг пролива</p>
                 )}
                 {steps.map((step, i) => (
-                  <div key={i} className="bg-[#F5F2EB] rounded-xl p-3.5 mb-4 last:mb-0 border border-black/[0.06] shadow-sm">
+                  <div key={i} className="bg-[#F5F2EB] rounded-xl p-3.5 mb-4 last:mb-0 border border-black/[0.06] shadow-sm border-l-2 border-l-accent/20">
                     {/* Header: Шаг N + удалить */}
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-bold text-coal">Шаг {i + 1}</span>
@@ -2270,7 +2270,7 @@ function RecipeFormModal({
 
           {type === "batch_brew" && (
             <>
-              <div className="premium-card p-4 space-y-3">
+              <div className="premium-card p-4 space-y-3 border border-black/[0.06]">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Параметры батч-брю</h3>
                 <Field label="Название лота" value={lotName} onChange={setLotName} required />
                 <Field label="Обжарщик" value={roaster} onChange={setRoaster} />
@@ -2299,7 +2299,7 @@ function RecipeFormModal({
           <button
             type="submit"
             disabled={saving}
-            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all duration-200 active:scale-[0.98]"
+            className="w-full h-12 bg-accent text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all duration-200 active:scale-[0.98] shadow-sm"
           >
             {saving ? "Сохранение..." : initial ? "Сохранить изменения" : "Создать"}
           </button>
@@ -2461,7 +2461,7 @@ function Field({
         onChange={(e) => onChange(type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="w-full px-3 py-2 bg-linen rounded-xl text-sm transition-all duration-200"
+        className="w-full px-3 py-2.5 bg-white rounded-xl text-sm border border-black/[0.06] shadow-sm transition-all duration-200 focus:border-accent/40 focus:shadow-md outline-none"
       />
     </label>
   );
@@ -2484,7 +2484,7 @@ function Select({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-linen rounded-xl text-sm appearance-none transition-all duration-200"
+        className="w-full px-3 py-2.5 bg-white rounded-xl text-sm border border-black/[0.06] shadow-sm transition-all duration-200 focus:border-accent/40 focus:shadow-md outline-none appearance-none"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
