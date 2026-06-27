@@ -47,7 +47,7 @@ import {
 } from "./api";
 import { bootTelegram, hapticImpact, hapticSuccess } from "./telegram";
 
-type NavId = "dashboard" | "recipes" | "pastry" | "checklist" | "reports";
+type NavId = "dashboard" | "recipes" | "pastry" | "checklist" | "reports" | "more";
 
 type SearchResult =
   | { kind: "brew_bar"; title: string; subtitle: string; id: string; item: BrewBarRecipe }
@@ -65,9 +65,8 @@ const tabs: { id: TabId; label: string }[] = [
 const navItems: { id: NavId; label: string; icon: typeof Home }[] = [
   { id: "dashboard", label: "Главная", icon: Home },
   { id: "recipes", label: "Рецепты", icon: Folder },
-  { id: "pastry", label: "Булки", icon: Croissant },
   { id: "checklist", label: "Смена", icon: ClipboardCheck },
-  { id: "reports", label: "Админ", icon: ShieldCheck },
+  { id: "more", label: "Ещё", icon: BarChart3 },
 ];
 
 const FOLDERS_KEY = "trud_folders";
@@ -288,6 +287,8 @@ function App() {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [globalQuery, setGlobalQuery] = useState("");
   const [activeChip, setActiveChip] = useState<string | null>(null);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isActionOpen, setIsActionOpen] = useState(false);
 
   const chips = ["V60", "Батч", "Авторские", "Открытие", "Закрытие"];
 
@@ -452,8 +453,19 @@ function App() {
     <div className="min-h-dvh bg-[#F0EDE4] text-coal">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#F0EDE4]/90 backdrop-blur-sm border-b border-white/50">
-        <div className="max-w-lg mx-auto flex items-center justify-center h-16 px-4">
+        <div className="max-w-lg mx-auto flex items-center justify-between h-14 px-4">
           <TrudLogo />
+          <button
+            type="button"
+            onClick={() => {
+              hapticImpact("light");
+              setIsActionOpen(true);
+            }}
+            className="w-9 h-9 rounded-xl bg-accent text-white flex items-center justify-center shadow-sm active:scale-95 transition-transform duration-150"
+            aria-label="Добавить"
+          >
+            <Plus size={18} />
+          </button>
         </div>
       </header>
 
@@ -497,7 +509,7 @@ function App() {
       )}
 
       {/* Content */}
-      <main className="max-w-lg mx-auto pb-32 px-4 pt-4 space-y-3">
+      <main className="max-w-lg mx-auto pb-36 px-4 pt-4 space-y-4">
         {/* DASHBOARD */}
         {activeNav === "dashboard" && (
           <>
@@ -545,38 +557,14 @@ function App() {
               </div>
             ) : (
               <>
-                {/* Быстрый доступ */}
-                <div>
-                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Быстрый доступ</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setActiveNav("recipes")} className="premium-card premium-card-interactive p-4 text-left">
-                      <Folder size={24} className="text-accent mb-1" />
-                      <p className="font-bold text-coal text-sm">Рецепты</p>
-                      <p className="text-[11px] text-muted mt-0.5">{brewBarRecipes.length + batchBrewRecipes.length + signatureTtks.length} шт.</p>
-                    </button>
-                    <button onClick={() => setActiveNav("checklist")} className="premium-card premium-card-interactive p-4 text-left">
-                      <ClipboardCheck size={24} className="text-green mb-1" />
-                      <p className="font-bold text-coal text-sm">Чек-листы</p>
-                      <p className="text-[11px] text-muted mt-0.5">{checklistItems.length} шт.</p>
-                    </button>
-                    <button onClick={() => setActiveNav("pastry")} className="premium-card premium-card-interactive p-4 text-left">
-                      <Croissant size={24} className="text-accent mb-1" />
-                      <p className="font-bold text-coal text-sm">Булки</p>
-                      <p className="text-[11px] text-muted mt-0.5">{pastryItems.length} шт.</p>
-                    </button>
-                    <button onClick={() => setActiveNav("reports")} className="premium-card premium-card-interactive p-4 text-left">
-                      <BarChart3 size={24} className="text-slate mb-1" />
-                      <p className="font-bold text-coal text-sm">Отчёты</p>
-                      <p className="text-[11px] text-muted mt-0.5">Смены, списания</p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* На смене */}
+                {/* На смене — главный рабочий блок */}
                 <div>
                   <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">На смене</p>
                   <div className="space-y-2">
-                    <button className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3">
+                    <button
+                      onClick={() => setActiveNav("checklist")}
+                      className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3"
+                    >
                       <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
                         <Clock size={20} />
                       </div>
@@ -585,7 +573,10 @@ function App() {
                         <p className="text-[11px] text-muted mt-0.5">Чек-лист открытия</p>
                       </div>
                     </button>
-                    <button className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3">
+                    <button
+                      onClick={() => setActiveNav("checklist")}
+                      className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3"
+                    >
                       <div className="w-10 h-10 rounded-xl bg-red/10 flex items-center justify-center text-red shrink-0">
                         <Clock size={20} />
                       </div>
@@ -597,10 +588,37 @@ function App() {
                   </div>
                 </div>
 
-                {/* Недавние рецепты */}
-                {brewBarRecipes.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Последние рецепты</p>
+                {/* Быстрый доступ */}
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Быстрый доступ</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setActiveNav("recipes")} className="premium-card premium-card-interactive p-4 text-left">
+                      <Folder size={24} className="text-accent mb-1" />
+                      <p className="font-bold text-coal text-sm">Рецепты</p>
+                      <p className="text-[11px] text-muted mt-0.5">Воронки, батч, авторские</p>
+                    </button>
+                    <button onClick={() => setActiveNav("checklist")} className="premium-card premium-card-interactive p-4 text-left">
+                      <ClipboardCheck size={24} className="text-green mb-1" />
+                      <p className="font-bold text-coal text-sm">Чек-листы</p>
+                      <p className="text-[11px] text-muted mt-0.5">Открытие и закрытие</p>
+                    </button>
+                    <button onClick={() => setActiveNav("pastry")} className="premium-card premium-card-interactive p-4 text-left">
+                      <Croissant size={24} className="text-accent mb-1" />
+                      <p className="font-bold text-coal text-sm">Булки</p>
+                      <p className="text-[11px] text-muted mt-0.5">Карта витрины</p>
+                    </button>
+                    <button onClick={() => setActiveNav("reports")} className="premium-card premium-card-interactive p-4 text-left">
+                      <BarChart3 size={24} className="text-slate mb-1" />
+                      <p className="font-bold text-coal text-sm">Отчёты</p>
+                      <p className="text-[11px] text-muted mt-0.5">Смены, списания</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Последние рецепты */}
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Последние рецепты</p>
+                  {brewBarRecipes.length > 0 ? (
                     <div className="space-y-2">
                       {brewBarRecipes.slice(0, 3).map((r) => (
                         <button
@@ -616,8 +634,13 @@ function App() {
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="premium-card p-4 text-center">
+                      <p className="text-sm text-muted">Нет сохранённых рецептов</p>
+                      <p className="text-[11px] text-stone-400 mt-1">Добавьте первый рецепт в разделе «Рецепты»</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </>
@@ -817,21 +840,25 @@ function App() {
         )}
       </main>
 
-      {/* Bottom Nav */}
+      {/* Bottom Nav — 4 пункта */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe pointer-events-none">
         <div className="max-w-lg mx-auto px-3 pb-2">
-          <div className="bottom-dock pointer-events-auto grid grid-cols-[1fr_1fr_88px_1fr_1fr] items-center gap-1">
-          {navItems.slice(0, 2).map((item) => {
+          <div className="bottom-dock pointer-events-auto grid grid-cols-4 items-center gap-1 px-1">
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeNav === item.id;
+            const isActive = item.id === "more" ? false : activeNav === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => {
                   hapticImpact("light");
-                  setActiveNav(item.id);
+                  if (item.id === "more") {
+                    setIsMoreOpen(true);
+                  } else {
+                    setActiveNav(item.id);
+                  }
                 }}
-                className={`relative flex flex-col items-center justify-center h-14 gap-0.5 rounded-2xl text-xs font-semibold transition-colors duration-200 ${
+                className={`relative flex flex-col items-center justify-center h-[68px] gap-0.5 rounded-2xl text-[11px] font-semibold transition-colors duration-200 ${
                   isActive ? "text-green" : "text-muted"
                 }`}
               >
@@ -842,46 +869,7 @@ function App() {
                     transition={{ type: "spring", stiffness: 280, damping: 28 }}
                   />
                 )}
-                <Icon size={22} className="relative z-10" />
-                <span className="relative z-10">{item.label}</span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={handleFab}
-            className="bottom-action"
-            aria-label="Добавить"
-          >
-            <span className="bottom-action-icon">
-              <Plus size={20} />
-            </span>
-            <span className="bottom-action-label">
-              {activeNav === "recipes" ? "Рецепт" : activeNav === "pastry" ? "Булка" : activeNav === "checklist" ? "Пункт" : "План"}
-            </span>
-          </button>
-          {navItems.slice(2).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeNav === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  hapticImpact("light");
-                  setActiveNav(item.id);
-                }}
-                className={`relative flex flex-col items-center justify-center h-14 gap-0.5 rounded-2xl text-xs font-semibold transition-colors duration-200 ${
-                  isActive ? "text-green" : "text-muted"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeBottomNavIndicator"
-                    className="absolute inset-0 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 shadow-inner"
-                    transition={{ type: "spring", stiffness: 280, damping: 28 }}
-                  />
-                )}
-                <Icon size={22} className="relative z-10" />
+                <Icon size={20} className="relative z-10" />
                 <span className="relative z-10">{item.label}</span>
               </button>
             );
@@ -889,6 +877,95 @@ function App() {
           </div>
         </div>
       </nav>
+
+      {/* More Sheet */}
+      {isMoreOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end justify-center" onClick={() => setIsMoreOpen(false)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-lg pb-8 sheet-animate" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center h-10">
+              <div className="w-8 h-1 rounded-full bg-stone-300" />
+            </div>
+            <div className="px-4 space-y-1">
+              <button
+                onClick={() => { setIsMoreOpen(false); setActiveNav("pastry"); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Croissant size={20} className="text-accent" />
+                <span className="font-semibold text-coal text-sm">Булки</span>
+              </button>
+              <button
+                onClick={() => { setIsMoreOpen(false); setActiveNav("reports"); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <BarChart3 size={20} className="text-slate" />
+                <span className="font-semibold text-coal text-sm">Отчёты</span>
+              </button>
+              <button
+                onClick={() => { setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <ShieldCheck size={20} className="text-stone-400" />
+                <span className="font-semibold text-coal text-sm">Админ</span>
+              </button>
+              <button
+                onClick={() => { setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <CalendarDays size={20} className="text-stone-400" />
+                <span className="font-semibold text-coal text-sm">Архив</span>
+              </button>
+              <button
+                onClick={() => { setIsMoreOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Clock size={20} className="text-stone-400" />
+                <span className="font-semibold text-coal text-sm">Настройки</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Sheet */}
+      {isActionOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end justify-center" onClick={() => setIsActionOpen(false)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-lg pb-8 sheet-animate" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center h-10">
+              <div className="w-8 h-1 rounded-full bg-stone-300" />
+            </div>
+            <div className="px-4 space-y-1">
+              <button
+                onClick={() => { setIsActionOpen(false); setActiveNav("recipes"); setIsCreating(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Droplets size={20} className="text-accent" />
+                <span className="font-semibold text-coal text-sm">Новый рецепт</span>
+              </button>
+              <button
+                onClick={() => { setIsActionOpen(false); setActiveNav("pastry"); setIsCreatingItem(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Croissant size={20} className="text-accent" />
+                <span className="font-semibold text-coal text-sm">Новая булка</span>
+              </button>
+              <button
+                onClick={() => { setIsActionOpen(false); setActiveNav("checklist"); setIsCreatingItem(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <ClipboardCheck size={20} className="text-green" />
+                <span className="font-semibold text-coal text-sm">Новый чек-лист</span>
+              </button>
+              <button
+                onClick={() => { setIsActionOpen(false); setIsCreatingFolder(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Folder size={20} className="text-stone-400" />
+                <span className="font-semibold text-coal text-sm">Новая папка</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Folder Modal */}
       {isCreatingFolder && (

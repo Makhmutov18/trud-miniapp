@@ -19,8 +19,11 @@
   body {
     background-color: #F0EDE4;
     color: var(--color-coal);
-    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    font-family: "Manrope", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 500;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   button, input, textarea, select {
