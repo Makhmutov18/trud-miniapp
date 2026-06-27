@@ -47,7 +47,7 @@ import {
 } from "./api";
 import { bootTelegram, hapticImpact, hapticSuccess } from "./telegram";
 
-type NavId = "home" | "pastry" | "checklist" | "reports";
+type NavId = "dashboard" | "recipes" | "pastry" | "checklist" | "reports";
 
 type SearchResult =
   | { kind: "brew_bar"; title: string; subtitle: string; id: string; item: BrewBarRecipe }
@@ -63,7 +63,8 @@ const tabs: { id: TabId; label: string }[] = [
 ];
 
 const navItems: { id: NavId; label: string; icon: typeof Home }[] = [
-  { id: "home", label: "Рецепты", icon: Home },
+  { id: "dashboard", label: "Главная", icon: Home },
+  { id: "recipes", label: "Рецепты", icon: Folder },
   { id: "pastry", label: "Булки", icon: Croissant },
   { id: "checklist", label: "Смена", icon: ClipboardCheck },
   { id: "reports", label: "Админ", icon: ShieldCheck },
@@ -267,7 +268,7 @@ function TrudLogo() {
 }
 
 function App() {
-  const [activeNav, setActiveNav] = useState<NavId>("home");
+  const [activeNav, setActiveNav] = useState<NavId>("dashboard");
   const [activeTab, setActiveTab] = useState<TabId>("brew_bar");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [folders, setFolders] = useState<RecipeFolder[]>(loadFolders);
@@ -433,7 +434,7 @@ function App() {
   // FAB logic
   function handleFab() {
     hapticImpact("light");
-    if (activeNav === "home") {
+    if (activeNav === "recipes") {
       setIsCreating(true);
     } else if (activeNav === "pastry") {
       setIsCreatingItem(true);
@@ -456,9 +457,10 @@ function App() {
         </div>
       </header>
 
-      {/* Hero / Search — только на home */}
-      {activeNav === "home" && (
+      {/* Dashboard — главная смены */}
+      {activeNav === "dashboard" && (
         <div className="max-w-lg mx-auto px-4 pt-4 pb-2">
+          {/* Hero + Search */}
           <h1 className="text-xl font-bold text-stone-900">Что завариваем сегодня?</h1>
           <p className="text-sm text-stone-500 mt-0.5 mb-3">Найти рецепт, ТТК, булку или чек-лист</p>
           <div className="relative">
@@ -494,38 +496,10 @@ function App() {
         </div>
       )}
 
-      {/* Tab rail */}
-      {activeNav === "home" && (
-        <nav className="max-w-lg mx-auto px-4 py-2 sticky top-16 z-30">
-          <div className="relative grid grid-cols-3 gap-1 rounded-2xl bg-[#556B2F]/10 p-1 border border-black/[0.03] backdrop-blur-md">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                hapticImpact("light");
-                setActiveTab(tab.id);
-              }}
-              className={`relative flex items-center justify-center h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
-                activeTab === tab.id ? "text-stone-900" : "text-stone-600/80"
-              }`}
-            >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="activeTopTabIndicator"
-                  className="absolute inset-0 rounded-xl bg-white/60 backdrop-blur-sm shadow-sm border border-white/40"
-                  transition={{ type: "spring", stiffness: 280, damping: 28 }}
-                />
-              )}
-              <span className="relative z-10">{tab.label}</span>
-            </button>
-          ))}
-          </div>
-        </nav>
-      )}
-
       {/* Content */}
       <main className="max-w-lg mx-auto pb-32 px-4 pt-4 space-y-3">
-        {activeNav === "home" && (
+        {/* DASHBOARD */}
+        {activeNav === "dashboard" && (
           <>
             {globalQuery.trim() ? (
               /* Search results */
@@ -571,126 +545,232 @@ function App() {
               </div>
             ) : (
               <>
-                {/* Back button when inside a folder */}
-                {activeFolderId && (
-                  <button
-                    onClick={() => setActiveFolderId(null)}
-                    className="flex items-center gap-2 text-sm font-semibold text-muted transition-colors duration-200 hover:text-coal"
-                  >
-                    <ArrowLeft size={18} />
-                    <span>Назад — все рецепты</span>
-                  </button>
-                )}
+                {/* Быстрый доступ */}
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Быстрый доступ</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setActiveNav("recipes")} className="premium-card premium-card-interactive p-4 text-left">
+                      <Folder size={24} className="text-accent mb-1" />
+                      <p className="font-bold text-coal text-sm">Рецепты</p>
+                      <p className="text-[11px] text-muted mt-0.5">{brewBarRecipes.length + batchBrewRecipes.length + signatureTtks.length} шт.</p>
+                    </button>
+                    <button onClick={() => setActiveNav("checklist")} className="premium-card premium-card-interactive p-4 text-left">
+                      <ClipboardCheck size={24} className="text-green mb-1" />
+                      <p className="font-bold text-coal text-sm">Чек-листы</p>
+                      <p className="text-[11px] text-muted mt-0.5">{checklistItems.length} шт.</p>
+                    </button>
+                    <button onClick={() => setActiveNav("pastry")} className="premium-card premium-card-interactive p-4 text-left">
+                      <Croissant size={24} className="text-accent mb-1" />
+                      <p className="font-bold text-coal text-sm">Булки</p>
+                      <p className="text-[11px] text-muted mt-0.5">{pastryItems.length} шт.</p>
+                    </button>
+                    <button onClick={() => setActiveNav("reports")} className="premium-card premium-card-interactive p-4 text-left">
+                      <BarChart3 size={24} className="text-slate mb-1" />
+                      <p className="font-bold text-coal text-sm">Отчёты</p>
+                      <p className="text-[11px] text-muted mt-0.5">Смены, списания</p>
+                    </button>
+                  </div>
+                </div>
 
-                {/* Folder cards (only in root) */}
-                {!activeFolderId && currentFolders.length > 0 && (
+                {/* На смене */}
+                <div>
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">На смене</p>
                   <div className="space-y-2">
-                    {currentFolders.map((folder) => {
-                      const count =
-                        activeTab === "brew_bar"
-                          ? brewBarRecipes.filter((r) => r.folderId === folder.id).length
-                          : activeTab === "batch_brew"
-                            ? batchBrewRecipes.filter((r) => r.folderId === folder.id).length
-                            : signatureTtks.filter((r) => r.folderId === folder.id).length;
-                      return (
+                    <button className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                        <Clock size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-coal text-sm">Открытие смены</p>
+                        <p className="text-[11px] text-muted mt-0.5">Чек-лист открытия</p>
+                      </div>
+                    </button>
+                    <button className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red/10 flex items-center justify-center text-red shrink-0">
+                        <Clock size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-coal text-sm">Закрытие смены</p>
+                        <p className="text-[11px] text-muted mt-0.5">Чек-лист закрытия</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Недавние рецепты */}
+                {brewBarRecipes.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Последние рецепты</p>
+                    <div className="space-y-2">
+                      {brewBarRecipes.slice(0, 3).map((r) => (
                         <button
-                          key={folder.id}
-                          onClick={() => {
-                            hapticImpact("light");
-                            setActiveFolderId(folder.id);
-                          }}
-                          className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3"
+                          key={r.id}
+                          onClick={() => { setSelectedRecipe(r); }}
+                          className="w-full premium-card premium-card-interactive p-3 text-left flex items-center gap-3"
                         >
-                          <FolderOpen size={28} className="text-accent flex-shrink-0" />
+                          <Droplets size={18} className="text-accent shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <span className="font-bold text-coal">{folder.name}</span>
-                            <p className="text-xs text-muted mt-0.5">{count} рецептов</p>
+                            <p className="font-semibold text-coal text-sm truncate">{r.lotName || "Без названия"}</p>
+                            <p className="text-[11px] text-muted mt-0.5">{r.roaster} · {r.method}</p>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              hapticImpact("light");
-                              handleDeleteFolder(folder.id);
-                            }}
-                            className="p-1 text-faint hover:text-red transition-colors duration-200"
-                            aria-label="Удалить папку"
-                          >
-                            <X size={14} />
-                          </button>
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 )}
+              </>
+            )}
+          </>
+        )}
 
-                {/* "+ Папка" button (only in root) */}
-                {!activeFolderId && (
-                  <button
-                    onClick={() => setIsCreatingFolder(true)}
-                    className="w-full bg-white border-2 border-dashed border-line rounded-2xl py-3 text-sm font-semibold text-muted flex items-center justify-center gap-2 transition-colors duration-200 hover:border-accent hover:text-accent"
-                  >
-                    <Folder size={18} />
-                    + Папка
-                  </button>
-                )}
+        {/* RECIPES — библиотека рецептов */}
+        {activeNav === "recipes" && (
+          <>
+            {/* Tab rail */}
+            <nav className="sticky top-16 z-30 -mx-4 px-4 pb-2">
+              <div className="relative grid grid-cols-3 gap-1 rounded-2xl bg-[#556B2F]/10 p-1 border border-black/[0.03] backdrop-blur-md">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    hapticImpact("light");
+                    setActiveTab(tab.id);
+                  }}
+                  className={`relative flex items-center justify-center h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
+                    activeTab === tab.id ? "text-stone-900" : "text-stone-600/80"
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTopTabIndicator"
+                      className="absolute inset-0 rounded-xl bg-white/60 backdrop-blur-sm shadow-sm border border-white/40"
+                      transition={{ type: "spring", stiffness: 280, damping: 28 }}
+                    />
+                  )}
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              ))}
+              </div>
+            </nav>
 
-                {/* Recipes */}
-                {activeTab === "brew_bar" && (
-                  <>
-                    {filteredBrewBar.length === 0 && !activeFolderId && currentFolders.length === 0 && (
-                      <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
-                    )}
-                    {filteredBrewBar.length === 0 && activeFolderId && (
-                      <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
-                    )}
-                    {filteredBrewBar.map((recipe) => (
-                      <BrewBarCard
-                        key={recipe.id}
-                        recipe={recipe}
-                        onSelect={setSelectedRecipe}
-                        onEdit={() => handleEdit(recipe)}
-                      />
-                    ))}
-                  </>
-                )}
+            {/* Back button when inside a folder */}
+            {activeFolderId && (
+              <button
+                onClick={() => setActiveFolderId(null)}
+                className="flex items-center gap-2 text-sm font-semibold text-muted transition-colors duration-200 hover:text-coal"
+              >
+                <ArrowLeft size={18} />
+                <span>Назад — все рецепты</span>
+              </button>
+            )}
 
-                {activeTab === "batch_brew" && (
-                  <>
-                    {filteredBatchBrew.length === 0 && !activeFolderId && currentFolders.length === 0 && (
-                      <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
-                    )}
-                    {filteredBatchBrew.length === 0 && activeFolderId && (
-                      <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
-                    )}
-                    {filteredBatchBrew.map((recipe) => (
-                      <BatchBrewCard
-                        key={recipe.id}
-                        recipe={recipe}
-                        onSelect={setSelectedRecipe}
-                        onEdit={() => handleEdit(recipe)}
-                      />
-                    ))}
-                  </>
-                )}
+            {/* Folder cards (only in root) */}
+            {!activeFolderId && currentFolders.length > 0 && (
+              <div className="space-y-2">
+                {currentFolders.map((folder) => {
+                  const count =
+                    activeTab === "brew_bar"
+                      ? brewBarRecipes.filter((r) => r.folderId === folder.id).length
+                      : activeTab === "batch_brew"
+                        ? batchBrewRecipes.filter((r) => r.folderId === folder.id).length
+                        : signatureTtks.filter((r) => r.folderId === folder.id).length;
+                  return (
+                    <button
+                      key={folder.id}
+                      onClick={() => {
+                        hapticImpact("light");
+                        setActiveFolderId(folder.id);
+                      }}
+                      className="w-full premium-card premium-card-interactive p-4 text-left flex items-center gap-3"
+                    >
+                      <FolderOpen size={28} className="text-accent flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-coal">{folder.name}</span>
+                        <p className="text-xs text-muted mt-0.5">{count} рецептов</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticImpact("light");
+                          handleDeleteFolder(folder.id);
+                        }}
+                        className="p-1 text-faint hover:text-red transition-colors duration-200"
+                        aria-label="Удалить папку"
+                      >
+                        <X size={14} />
+                      </button>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-                {activeTab === "signature_ttk" && (
-                  <>
-                    {filteredSignature.length === 0 && !activeFolderId && currentFolders.length === 0 && (
-                      <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
-                    )}
-                    {filteredSignature.length === 0 && activeFolderId && (
-                      <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
-                    )}
-                    {filteredSignature.map((ttk) => (
-                      <SignatureTtkCard
-                        key={ttk.id}
-                        ttk={ttk}
-                        onSelect={setSelectedRecipe}
-                        onEdit={() => handleEdit(ttk)}
-                      />
-                    ))}
-                  </>
+            {/* "+ Папка" button (only in root) */}
+            {!activeFolderId && (
+              <button
+                onClick={() => setIsCreatingFolder(true)}
+                className="w-full bg-white border-2 border-dashed border-line rounded-2xl py-3 text-sm font-semibold text-muted flex items-center justify-center gap-2 transition-colors duration-200 hover:border-accent hover:text-accent"
+              >
+                <Folder size={18} />
+                + Папка
+              </button>
+            )}
+
+            {/* Recipes */}
+            {activeTab === "brew_bar" && (
+              <>
+                {filteredBrewBar.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет рецептов воронок</p>
                 )}
+                {filteredBrewBar.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredBrewBar.map((recipe) => (
+                  <BrewBarCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(recipe)}
+                  />
+                ))}
+              </>
+            )}
+
+            {activeTab === "batch_brew" && (
+              <>
+                {filteredBatchBrew.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет рецептов батч-брю</p>
+                )}
+                {filteredBatchBrew.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredBatchBrew.map((recipe) => (
+                  <BatchBrewCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(recipe)}
+                  />
+                ))}
+              </>
+            )}
+
+            {activeTab === "signature_ttk" && (
+              <>
+                {filteredSignature.length === 0 && !activeFolderId && currentFolders.length === 0 && (
+                  <p className="text-center text-muted py-12 text-sm">Нет авторских напитков</p>
+                )}
+                {filteredSignature.length === 0 && activeFolderId && (
+                  <p className="text-center text-muted py-12 text-sm">В этой папке пока нет рецептов</p>
+                )}
+                {filteredSignature.map((ttk) => (
+                  <SignatureTtkCard
+                    key={ttk.id}
+                    ttk={ttk}
+                    onSelect={setSelectedRecipe}
+                    onEdit={() => handleEdit(ttk)}
+                  />
+                ))}
               </>
             )}
           </>
@@ -777,7 +857,7 @@ function App() {
               <Plus size={20} />
             </span>
             <span className="bottom-action-label">
-              {activeNav === "home" ? "Рецепт" : activeNav === "pastry" ? "Булка" : activeNav === "checklist" ? "Пункт" : "План"}
+              {activeNav === "recipes" ? "Рецепт" : activeNav === "pastry" ? "Булка" : activeNav === "checklist" ? "Пункт" : "План"}
             </span>
           </button>
           {navItems.slice(2).map((item) => {
