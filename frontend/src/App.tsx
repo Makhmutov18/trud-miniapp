@@ -449,8 +449,8 @@ function App() {
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeTopTabIndicator"
-                  className="absolute inset-0 rounded-xl bg-white shadow-sm border border-black/[0.03]"
-                  transition={{ type: "spring", stiffness: 430, damping: 28, mass: 0.9 }}
+                  className="absolute inset-0 rounded-xl bg-white/40 backdrop-blur-md border border-white/30 shadow-inner"
+                  transition={{ type: "spring", stiffness: 280, damping: 28 }}
                 />
               )}
               <span className="relative z-10">{tab.label}</span>
@@ -649,8 +649,8 @@ function App() {
                 {isActive && (
                   <motion.div
                     layoutId="activeBottomNavIndicator"
-                    className="absolute inset-0 rounded-2xl bg-white shadow-sm border border-black/[0.03]"
-                    transition={{ type: "spring", stiffness: 420, damping: 27, mass: 0.9 }}
+                    className="absolute inset-0 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 shadow-inner"
+                    transition={{ type: "spring", stiffness: 280, damping: 28 }}
                   />
                 )}
                 <Icon size={22} className="relative z-10" />
@@ -688,8 +688,8 @@ function App() {
                 {isActive && (
                   <motion.div
                     layoutId="activeBottomNavIndicator"
-                    className="absolute inset-0 rounded-2xl bg-white shadow-sm border border-black/[0.03]"
-                    transition={{ type: "spring", stiffness: 420, damping: 27, mass: 0.9 }}
+                    className="absolute inset-0 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 shadow-inner"
+                    transition={{ type: "spring", stiffness: 280, damping: 28 }}
                   />
                 )}
                 <Icon size={22} className="relative z-10" />
