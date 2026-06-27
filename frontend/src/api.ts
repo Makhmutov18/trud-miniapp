@@ -70,7 +70,7 @@ export type SignatureTtk = {
   category: SignatureDrinkCategory;
   servingVolumeMl: number;
   vessel: string;
-  imageUrl: string;
+  imageUrl?: string | null;
   ingredients: Ingredient[];
   serviceSteps: string[];
   allergensAndComposition: string;
@@ -132,6 +132,22 @@ export type ItemCreatePayload = {
 function stripClientFields<T extends Record<string, any>>(data: T): Record<string, any> {
   const { id, type, createdAt, updatedAt, ...rest } = data;
   return rest;
+}
+
+function normalizeSignatureTtk(data: SignatureTtk): SignatureTtk {
+  return {
+    ...data,
+    drinkName: data.drinkName ?? "",
+    category: data.category ?? "cold",
+    servingVolumeMl: data.servingVolumeMl ?? 0,
+    vessel: data.vessel ?? "",
+    imageUrl: typeof data.imageUrl === "string" ? data.imageUrl : "",
+    ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
+    serviceSteps: Array.isArray(data.serviceSteps) ? data.serviceSteps : [],
+    allergensAndComposition: data.allergensAndComposition ?? "",
+    storageConditions: data.storageConditions ?? "",
+    notes: data.notes ?? "",
+  };
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -242,31 +258,35 @@ export async function deleteBatchBrew(recipeId: string): Promise<void> {
 
 export async function fetchSignatureTtks(category?: SignatureDrinkCategory): Promise<SignatureTtk[]> {
   const query = category ? `?category=${category}` : "";
-  return apiRequest<SignatureTtk[]>(`${API_BASE}/api/recipes/signature-ttk${query}`, undefined, "Не удалось загрузить ТТК");
+  const data = await apiRequest<SignatureTtk[]>(`${API_BASE}/api/recipes/signature-ttk${query}`, undefined, "Не удалось загрузить ТТК");
+  return data.map(normalizeSignatureTtk);
 }
 
 export async function createSignatureTtk(payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
-  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk`, {
+  const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось создать ТТК");
+  return normalizeSignatureTtk(data);
 }
 
 export async function updateSignatureTtk(ttkId: string, payload: Partial<SignatureTtk>): Promise<SignatureTtk> {
-  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
+  const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось обновить ТТК");
+  return normalizeSignatureTtk(data);
 }
 
 export async function replaceSignatureTtk(ttkId: string, payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
-  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
+  const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось заменить ТТК");
+  return normalizeSignatureTtk(data);
 }
 
 export async function deleteSignatureTtk(ttkId: string): Promise<void> {

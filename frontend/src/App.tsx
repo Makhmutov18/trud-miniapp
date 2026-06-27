@@ -378,7 +378,7 @@ function App() {
           const signature = await fetchSignatureTtks();
           setSignatureTtks(signature.map(normalizeFolderId));
         } catch (error) {
-          console.error("Failed to load signature recipes", error);
+          console.error("Failed to load signature TTK recipes", error);
         }
       })(),
       (async () => {
@@ -1351,18 +1351,28 @@ function SignatureTtkCard({
   onSelect: (r: SignatureTtk) => void;
   onEdit: () => void;
 }) {
+  const imageUrl = typeof ttk.imageUrl === "string" ? ttk.imageUrl.trim() : "";
+  const ingredients = Array.isArray(ttk.ingredients) ? ttk.ingredients : [];
+
   return (
     <button
       onClick={() => onSelect(ttk)}
       className="w-full premium-card premium-card-interactive overflow-hidden text-left"
     >
-      {ttk.imageUrl && (
+      {imageUrl ? (
         <img
-          src={ttk.imageUrl}
+          src={imageUrl}
           alt=""
           className="w-full aspect-[4/3] object-cover border-b border-black/[0.06]"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
+      ) : (
+        <div className="flex w-full aspect-[4/3] items-end border-b border-black/[0.06] bg-[linear-gradient(160deg,rgba(244,241,234,1)_0%,rgba(255,255,255,1)_54%,rgba(232,226,214,1)_100%)] p-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Signature TTK</p>
+            <p className="mt-1 text-sm text-coal/80">{ttk.category === "hot" ? "Горячая подача" : "Холодная подача"}</p>
+          </div>
+        </div>
       )}
       <div className="p-4">
         <div className="flex items-start justify-between">
@@ -1381,7 +1391,7 @@ function SignatureTtkCard({
           </button>
         </div>
         <div className="mt-3 text-sm text-muted">
-          {ttk.ingredients.length} ингредиентов · Посуда: {ttk.vessel}
+          {ingredients.length} ингредиентов · Посуда: {ttk.vessel}
         </div>
       </div>
     </button>
@@ -1645,15 +1655,26 @@ function BatchBrewDetail({ recipe }: { recipe: BatchBrewRecipe }) {
 }
 
 function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
+  const imageUrl = typeof ttk.imageUrl === "string" ? ttk.imageUrl.trim() : "";
+  const ingredients = Array.isArray(ttk.ingredients) ? ttk.ingredients : [];
+  const serviceSteps = Array.isArray(ttk.serviceSteps) ? ttk.serviceSteps : [];
+
   return (
     <div>
-      {ttk.imageUrl && (
+      {imageUrl ? (
         <img
-          src={ttk.imageUrl}
+          src={imageUrl}
           alt=""
           className="w-full aspect-[4/3] object-cover photo-frame mb-4"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
+      ) : (
+        <div className="mb-4 flex w-full aspect-[4/3] items-end rounded-[24px] border border-black/[0.06] bg-[linear-gradient(160deg,rgba(244,241,234,1)_0%,rgba(255,255,255,1)_54%,rgba(232,226,214,1)_100%)] p-5">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Signature TTK</p>
+            <p className="mt-1 text-sm text-coal/80">Фото пока не добавлено</p>
+          </div>
+        </div>
       )}
 
       <h2 className="text-2xl font-black text-coal">{ttk.drinkName}</h2>
@@ -1664,7 +1685,7 @@ function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
       <div className="mt-6">
         <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Ингредиенты</h3>
         <div className="bg-linen rounded-xl p-3">
-          {ttk.ingredients.map((ing, i) => (
+          {ingredients.map((ing, i) => (
             <div key={i} className="ingredient-row">
               <span className="font-medium">{ing.ingredientName}</span>
               <span className="font-mono font-semibold text-right">{ing.exactAmount}</span>
@@ -1673,11 +1694,11 @@ function SignatureTtkDetail({ ttk }: { ttk: SignatureTtk }) {
         </div>
       </div>
 
-      {ttk.serviceSteps.length > 0 && (
+      {serviceSteps.length > 0 && (
         <div className="mt-6">
           <h3 className="font-bold text-sm text-muted uppercase tracking-wider mb-3">Приготовление</h3>
           <ol className="space-y-2">
-            {ttk.serviceSteps.map((step, i) => (
+            {serviceSteps.map((step, i) => (
               <li key={i} className="flex gap-3 text-sm">
                 <span className="font-bold text-accent flex-shrink-0 w-5">{i + 1}.</span>
                 <span>{step}</span>
