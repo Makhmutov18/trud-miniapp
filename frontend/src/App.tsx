@@ -2201,15 +2201,13 @@ function RecipeFormModal({
                         <X size={16} />
                       </button>
                     </div>
-                    {/* Stage selector */}
-                    <select
-                      className="w-full px-3 py-2.5 bg-white rounded-xl text-sm mb-3 border border-black/[0.06] shadow-sm"
-                      value={step.stageName}
-                      onChange={(e) => updateStep(i, "stageName", e.target.value)}
-                    >
-                      <option value="Блум">Блум</option>
-                      <option value="Вливание">Вливание</option>
-                    </select>
+                    {/* Stage segmented control */}
+                    <div className="mb-3">
+                      <StageSegmentedControl
+                        value={step.stageName === "Блум" ? "Блум" : "Вливание"}
+                        onChange={(v) => updateStep(i, "stageName", v)}
+                      />
+                    </div>
                     {/* Time + Volume + Weight row */}
                     <div className="grid grid-cols-3 gap-2.5 mb-3">
                       <div>
@@ -2432,6 +2430,40 @@ function ItemFormModal({
           )}
         </div>
       </form>
+    </div>
+  );
+}
+
+// === Stage Segmented Control ===
+function StageSegmentedControl({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const options = ["Блум", "Вливание"];
+  return (
+    <div className="relative flex bg-[#F5F2EB] rounded-xl p-0.5 border border-black/[0.06]">
+      <div
+        className="absolute top-0.5 bottom-0.5 rounded-[10px] bg-white shadow-sm border border-black/[0.04] transition-all duration-200"
+        style={{
+          left: value === "Блум" ? "2px" : "50%",
+          right: value === "Блум" ? "50%" : "2px",
+        }}
+      />
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          className={`relative z-10 flex-1 py-2 text-sm font-semibold rounded-[10px] transition-colors duration-200 ${
+            value === opt ? "text-stone-900" : "text-muted"
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
     </div>
   );
 }
