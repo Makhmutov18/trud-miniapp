@@ -17,6 +17,14 @@
 - JSON, а не HTML;
 - нормальные данные по рецептам.
 
+## Auth после deploy
+
+- Read-only GET endpoints остаются публичными для чтения и диагностики.
+- Mutating endpoints (`POST`, `PATCH`, `PUT`, `DELETE`) требуют авторизацию.
+- Основной production-сценарий записи — через Telegram Mini App с валидным `X-Telegram-Init-Data`.
+- `TRUD_AUTH_BYPASS=true` использовать только локально, не на Railway.
+- Для automated production CRUD smoke можно использовать `TRUD_SMOKE_TEST_TOKEN` и header `X-Trud-Smoke-Token`.
+
 ## Признаки сломанного API
 
 - `500`
@@ -54,6 +62,8 @@ python scripts/check_production.py --base-url https://trud-miniapp-production.up
 ```bash
 python scripts/check_production.py --base-url https://trud-miniapp-production.up.railway.app --crud-smoke
 ```
+
+Если `TRUD_SMOKE_TEST_TOKEN` не настроен в окружении запуска скрипта, CRUD smoke должен быть честно помечен как `SKIPPED`, а не `PASS`.
 
 Если Codex не может дождаться Railway deploy или выполнить internet request, он должен прямо написать:
 

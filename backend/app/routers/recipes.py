@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import require_mutation_auth
 from app.database import get_db
 from app.repositories.brew_bar_repository import BrewBarRepository
 from app.repositories.batch_brew_repository import BatchBrewRepository
@@ -44,6 +45,7 @@ async def list_brew_bar(
 @router.post("/brew-bar", status_code=201)
 async def create_brew_bar(
     payload: BrewBarCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     return await service.create_brew_bar(payload)
@@ -64,6 +66,7 @@ async def get_brew_bar(
 async def replace_brew_bar(
     recipe_id: str,
     payload: BrewBarCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     recipe = await service.replace_brew_bar(recipe_id, payload)
@@ -76,6 +79,7 @@ async def replace_brew_bar(
 async def update_brew_bar(
     recipe_id: str,
     payload: BrewBarUpdate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     recipe = await service.update_brew_bar(recipe_id, payload)
@@ -87,6 +91,7 @@ async def update_brew_bar(
 @router.delete("/brew-bar/{recipe_id}")
 async def delete_brew_bar(
     recipe_id: str,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     if not await service.delete_brew_bar(recipe_id):
@@ -106,6 +111,7 @@ async def list_batch_brew(
 @router.post("/batch-brew", status_code=201)
 async def create_batch_brew(
     payload: BatchBrewCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     return await service.create_batch_brew(payload)
@@ -126,6 +132,7 @@ async def get_batch_brew(
 async def replace_batch_brew(
     recipe_id: str,
     payload: BatchBrewCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     recipe = await service.replace_batch_brew(recipe_id, payload)
@@ -138,6 +145,7 @@ async def replace_batch_brew(
 async def update_batch_brew(
     recipe_id: str,
     payload: BatchBrewUpdate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     recipe = await service.update_batch_brew(recipe_id, payload)
@@ -149,6 +157,7 @@ async def update_batch_brew(
 @router.delete("/batch-brew/{recipe_id}")
 async def delete_batch_brew(
     recipe_id: str,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     if not await service.delete_batch_brew(recipe_id):
@@ -169,6 +178,7 @@ async def list_signature_ttk(
 @router.post("/signature-ttk", status_code=201)
 async def create_signature_ttk(
     payload: SignatureTtkCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     return await service.create_signature_ttk(payload)
@@ -189,6 +199,7 @@ async def get_signature_ttk(
 async def replace_signature_ttk(
     ttk_id: str,
     payload: SignatureTtkCreate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     ttk = await service.replace_signature_ttk(ttk_id, payload)
@@ -201,6 +212,7 @@ async def replace_signature_ttk(
 async def update_signature_ttk(
     ttk_id: str,
     payload: SignatureTtkUpdate,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     ttk = await service.update_signature_ttk(ttk_id, payload)
@@ -212,6 +224,7 @@ async def update_signature_ttk(
 @router.delete("/signature-ttk/{ttk_id}")
 async def delete_signature_ttk(
     ttk_id: str,
+    _auth: dict = Depends(require_mutation_auth),
     service: RecipeService = Depends(get_recipe_service),
 ):
     if not await service.delete_signature_ttk(ttk_id):

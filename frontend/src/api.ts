@@ -1,3 +1,5 @@
+import { getTelegramApp } from "./telegram";
+
 export type RecipeType = "brew_bar" | "batch_brew" | "signature_ttk";
 
 export type RecipeFolder = {
@@ -152,8 +154,20 @@ function normalizeSignatureTtk(data: SignatureTtk): SignatureTtk {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+function withTelegramInitData(headers?: HeadersInit): Headers {
+  const merged = new Headers(headers);
+  const initData = getTelegramApp()?.initData;
+  if (initData) {
+    merged.set("X-Telegram-Init-Data", initData);
+  }
+  return merged;
+}
+
 async function apiRequest<T>(url: string, init: RequestInit | undefined, fallbackMessage: string): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, {
+    ...init,
+    headers: withTelegramInitData(init?.headers),
+  });
   const contentType = response.headers.get("content-type") || "";
   const body = await response.text();
 
@@ -195,7 +209,7 @@ export async function fetchBrewBarRecipes(method?: BrewMethod): Promise<BrewBarR
 export async function createBrewBar(payload: Omit<BrewBarRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BrewBarRecipe> {
   return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось создать рецепт");
 }
@@ -203,7 +217,7 @@ export async function createBrewBar(payload: Omit<BrewBarRecipe, "id" | "type" |
 export async function updateBrewBar(recipeId: string, payload: Partial<BrewBarRecipe>): Promise<BrewBarRecipe> {
   return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось обновить рецепт");
 }
@@ -211,7 +225,7 @@ export async function updateBrewBar(recipeId: string, payload: Partial<BrewBarRe
 export async function replaceBrewBar(recipeId: string, payload: Omit<BrewBarRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BrewBarRecipe> {
   return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось заменить рецепт");
 }
@@ -229,7 +243,7 @@ export async function fetchBatchBrewRecipes(): Promise<BatchBrewRecipe[]> {
 export async function createBatchBrew(payload: Omit<BatchBrewRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BatchBrewRecipe> {
   return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось создать рецепт");
 }
@@ -237,7 +251,7 @@ export async function createBatchBrew(payload: Omit<BatchBrewRecipe, "id" | "typ
 export async function updateBatchBrew(recipeId: string, payload: Partial<BatchBrewRecipe>): Promise<BatchBrewRecipe> {
   return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось обновить рецепт");
 }
@@ -245,7 +259,7 @@ export async function updateBatchBrew(recipeId: string, payload: Partial<BatchBr
 export async function replaceBatchBrew(recipeId: string, payload: Omit<BatchBrewRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BatchBrewRecipe> {
   return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось заменить рецепт");
 }
@@ -265,7 +279,7 @@ export async function fetchSignatureTtks(category?: SignatureDrinkCategory): Pro
 export async function createSignatureTtk(payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
   const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось создать ТТК");
   return normalizeSignatureTtk(data);
@@ -274,7 +288,7 @@ export async function createSignatureTtk(payload: Omit<SignatureTtk, "id" | "typ
 export async function updateSignatureTtk(ttkId: string, payload: Partial<SignatureTtk>): Promise<SignatureTtk> {
   const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось обновить ТТК");
   return normalizeSignatureTtk(data);
@@ -283,7 +297,7 @@ export async function updateSignatureTtk(ttkId: string, payload: Partial<Signatu
 export async function replaceSignatureTtk(ttkId: string, payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
   const data = await apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(stripClientFields(payload)),
   }, "Не удалось заменить ТТК");
   return normalizeSignatureTtk(data);
@@ -308,7 +322,7 @@ export async function fetchItems(category: string): Promise<ItemResponse[]> {
 export async function createItem(payload: ItemCreatePayload): Promise<ItemResponse> {
   return apiRequest<ItemResponse>(`${API_BASE}/api/items`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   }, "Не удалось создать");
 }
@@ -316,7 +330,7 @@ export async function createItem(payload: ItemCreatePayload): Promise<ItemRespon
 export async function updateItem(itemId: string, payload: Partial<ItemCreatePayload>): Promise<ItemResponse> {
   return apiRequest<ItemResponse>(`${API_BASE}/api/items/${itemId}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: withTelegramInitData({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   }, "Не удалось обновить");
 }

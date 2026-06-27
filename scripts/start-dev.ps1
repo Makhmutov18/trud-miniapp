@@ -58,7 +58,7 @@ function Start-BackendWindow {
     param([string]$Root)
 
     $backendDir = Join-Path $Root "backend"
-    $backendCommand = "Set-Location -LiteralPath '$backendDir'; python -m uvicorn app.main:app --reload --port 8001"
+    $backendCommand = "`$env:TRUD_AUTH_BYPASS='true'; Set-Location -LiteralPath '$backendDir'; python -m uvicorn app.main:app --reload --port 8001"
     Start-Process -FilePath "powershell.exe" `
         -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $backendCommand) `
         -WorkingDirectory $backendDir

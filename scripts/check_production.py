@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -27,9 +27,22 @@ def body_looks_like_html(body: str) -> bool:
     return stripped.startswith("<!doctype html") or stripped.startswith("<html")
 
 
-def request(method: str, url: str, payload: dict | None = None) -> tuple[int | None, str, str]:
+def build_headers(extra_headers: dict[str, str] | None = None) -> dict[str, str]:
+    headers = dict(extra_headers or {})
+    smoke_token = os.environ.get("TRUD_SMOKE_TEST_TOKEN", "").strip()
+    if smoke_token:
+        headers["X-Trud-Smoke-Token"] = smoke_token
+    return headers
+
+
+def request(
+    method: str,
+    url: str,
+    payload: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> tuple[int | None, str, str]:
     data = None
-    headers = {}
+    headers = build_headers(extra_headers)
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -232,6 +245,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def has_smoke_token() -> bool:
+    return bool(os.environ.get("TRUD_SMOKE_TEST_TOKEN", "").strip())
+
+
 def main() -> int:
     args = parse_args()
     base_url = args.base_url.rstrip("/")
@@ -282,6 +299,26 @@ def main() -> int:
     created_records: list[dict[str, str]] = []
 
     if crud_smoke:
+        if not has_smoke_token():
+            report["crud_smoke"] = "SKIPPED"
+            report["created_test_records_cleaned"] = "skipped"
+            report["overall"] = "PASS" if overall_ok else "FAIL"
+
+            print("CRUD smoke not run: TRUD_SMOKE_TEST_TOKEN is not configured in Codex environment.")
+            print()
+            print("PRODUCTION SMOKE REPORT")
+            print()
+            print(f"* health: {report['health']}")
+            print(f"* brew-bar GET: {report['brew_bar_get']}")
+            print(f"* batch-brew GET: {report['batch_brew_get']}")
+            print(f"* signature-ttk GET: {report['signature_ttk_get']}")
+            print(f"* pastry GET: {report['pastry_get']}")
+            print(f"* checklist GET: {report['checklist_get']}")
+            print(f"* crud smoke: {report['crud_smoke']}")
+            print(f"* created test records cleaned: {report['created_test_records_cleaned']}")
+            print(f"* overall: {report['overall']}")
+            return 0 if overall_ok else 1
+
         stamp = utc_stamp()
 
         brew_payload = build_brew_payload(stamp)

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     web_app_url: str = ""
     webhook_secret: str = "trud-local-dev"
     cors_origins: str = "*"
+    auth_bypass: bool = False
+    smoke_test_token: str = ""
 
     model_config = {"env_prefix": "TRUD_"}
 

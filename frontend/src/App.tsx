@@ -408,6 +408,16 @@ function App() {
     }
   }
 
+  function getSaveErrorMessage(error: unknown) {
+    if (
+      error instanceof Error &&
+      /(401|403|Missing Telegram authentication|Invalid Telegram authentication)/i.test(error.message)
+    ) {
+      return "Нет доступа к сохранению. Откройте приложение через Telegram.";
+    }
+    return error instanceof Error ? error.message : "Ошибка сохранения";
+  }
+
   function handleEdit(recipe: BrewBarRecipe | BatchBrewRecipe | SignatureTtk) {
     setSelectedRecipe(recipe);
     setIsEditing(true);
@@ -1151,7 +1161,7 @@ function App() {
               await refreshAfterSave();
             } catch (error) {
               console.error("Save failed", error);
-              alert(error instanceof Error ? error.message : "Ошибка сохранения");
+              alert(getSaveErrorMessage(error));
             }
           }}
         />
@@ -1192,7 +1202,7 @@ function App() {
               await refreshAfterSave();
             } catch (error) {
               console.error("Save failed", error);
-              alert(error instanceof Error ? error.message : "Ошибка сохранения");
+              alert(getSaveErrorMessage(error));
             }
           }}
         />
