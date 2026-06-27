@@ -31,6 +31,13 @@
 - После успешной проверки смотреть `git status`.
 - Потом делать commit.
 - Потом делать `git push origin main`.
+- После каждого push в `main` Codex должен по возможности дождаться Railway redeploy и запустить production smoke-check:
+  `python scripts/check_production.py --base-url https://trud-miniapp-production.up.railway.app`
+- Для задач, затрагивающих CRUD/API, Codex должен также запускать:
+  `python scripts/check_production.py --base-url https://trud-miniapp-production.up.railway.app --crud-smoke`
+- Если Codex не может дождаться Railway deploy или выполнить internet request, он должен прямо написать:
+  `PRODUCTION CHECK NOT RUN: <reason>`
+- В ответе после таких проверок нужно показывать PASS/FAIL отчет.
 
 ## Что писать в ответе
 
@@ -41,4 +48,3 @@
 - commit hash;
 - результат push;
 - что проверить после Railway deploy.
-

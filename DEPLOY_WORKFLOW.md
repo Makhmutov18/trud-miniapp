@@ -41,3 +41,20 @@
 - После deploy новые записи должны сохраняться и возвращаться в списках.
 - Если данные пропали после обновления, сначала проверяй API и базу, а не фронтенд-дизайн.
 
+## Автоматическая production-проверка
+
+После push в `main` запускай:
+
+```bash
+python scripts/check_production.py --base-url https://trud-miniapp-production.up.railway.app
+```
+
+Если нужно проверить CRUD и при этом не оставить тестовые записи, запускай:
+
+```bash
+python scripts/check_production.py --base-url https://trud-miniapp-production.up.railway.app --crud-smoke
+```
+
+Если Codex не может дождаться Railway deploy или выполнить internet request, он должен прямо написать:
+
+`PRODUCTION CHECK NOT RUN: <reason>`
