@@ -400,7 +400,7 @@ function App() {
       {/* Tab rail */}
       {activeNav === "home" && (
         <nav className="max-w-lg mx-auto px-4 py-2 sticky top-16 z-30">
-          <div className="relative grid grid-cols-3 gap-1 rounded-2xl bg-white/55 p-1 border border-white/60 shadow-sm backdrop-blur-lg">
+          <div className="relative grid grid-cols-3 gap-1 rounded-2xl bg-[#556B2F]/10 p-1 border border-black/[0.03] backdrop-blur-md">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -409,13 +409,13 @@ function App() {
                 setActiveTab(tab.id);
               }}
               className={`relative flex items-center justify-center h-10 rounded-xl text-sm font-bold transition-colors duration-200 ${
-                activeTab === tab.id ? "text-coal" : "text-muted"
+                activeTab === tab.id ? "text-stone-900" : "text-stone-600/80"
               }`}
             >
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeTopTabIndicator"
-                  className="absolute inset-0 rounded-xl bg-white/40 backdrop-blur-md border border-white/30 shadow-inner"
+                  className="absolute inset-0 rounded-xl bg-white/60 backdrop-blur-sm shadow-sm border border-white/40"
                   transition={{ type: "spring", stiffness: 280, damping: 28 }}
                 />
               )}
