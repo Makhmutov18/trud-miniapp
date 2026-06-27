@@ -1927,7 +1927,8 @@ function RecipeFormModal({
   }
 
   function addStep() {
-    setSteps([...steps, { startTime: "0:00", stageName: "", pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
+    const nextIndex = steps.length + 1;
+    setSteps([...steps, { startTime: "0:00", stageName: `Этап ${nextIndex}`, pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
   }
 
   function updateStep(i: number, field: keyof BrewBarStep, value: string | number) {
@@ -1966,6 +1967,11 @@ function RecipeFormModal({
     e.preventDefault();
     setSaving(true);
     try {
+      // Normalize steps: ensure stageName is never empty
+      const normalizedSteps = steps.map((s, i) => ({
+        ...s,
+        stageName: s.stageName?.trim() || `Этап ${i + 1}`,
+      }));
       if (type === "brew_bar") {
         await onSave({
           folderId,
@@ -1974,7 +1980,7 @@ function RecipeFormModal({
           coffeeWeightG, waterVolumeMl,
           temperature: temperature !== "" ? Number(temperature) : null,
           waterPpm: waterPpm !== "" ? Number(waterPpm) : null,
-          steps, cupDescription, notes,
+          steps: normalizedSteps, cupDescription, notes,
         });
       } else if (type === "batch_brew") {
         await onSave({
@@ -2176,65 +2182,83 @@ function RecipeFormModal({
               </div>
 
               {/* Блок: Схема проливов */}
-              <div className="premium-card p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider">Схема проливов</h3>
-                  <button
-                    type="button"
-                    onClick={addStep}
-                    className="text-xs font-semibold text-accent transition-colors duration-200 hover:text-accent/80"
-                  >
-                    + Добавить шаг
-                  </button>
-                </div>
+              <div className="premium-card p-4">
+                <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">Схема проливов</h3>
+                {steps.length === 0 && (
+                  <p className="text-xs text-muted text-center py-6">Нет шагов. Добавьте первый шаг пролива</p>
+                )}
                 {steps.map((step, i) => (
-                  <div key={i} className="pb-2 border-b border-line last:border-b-0">
-                    <div className="flex items-center gap-2">
-                      <input
-                        className="w-[60px] px-2 py-1.5 bg-linen rounded-lg text-sm font-mono text-center"
-                        placeholder="0:00"
-                        value={step.startTime}
-                        onChange={(e) => handleTimeChange(i, e.target.value)}
-                      />
-                      <input
-                        className="w-[60px] px-2 py-1.5 bg-linen rounded-lg text-sm font-mono text-center"
-                        placeholder="мл"
-                        type="number"
-                        value={step.pourVolumeMl || ""}
-                        onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
-                      />
-                      <input
-                        className="w-[60px] px-2 py-1.5 bg-linen rounded-lg text-sm font-mono text-center"
-                        placeholder="вес"
-                        type="number"
-                        value={step.targetWeightG || ""}
-                        onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
-                      />
-                      <select
-                        className="min-w-0 flex-1 px-2 py-1.5 bg-linen rounded-lg text-sm"
-                        value={step.stageName}
-                        onChange={(e) => updateStep(i, "stageName", e.target.value)}
-                        title="Стадия"
+                  <div key={i} className="bg-linen/70 rounded-xl p-3 mb-3 last:mb-0">
+                    {/* Header: Шаг N + удалить */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-bold text-coal">Шаг {i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeStep(i)}
+                        className="p-1.5 text-red/70 hover:text-red transition-colors duration-150"
+                        aria-label={`Удалить шаг ${i + 1}`}
                       >
-                        <option value="">Стадия</option>
-                        <option value="Блум">Блум</option>
-                        <option value="Вливание">Вливание</option>
-                      </select>
-                      <button type="button" onClick={() => removeStep(i)} className="p-1.5 text-red flex-shrink-0" title="Удалить шаг">
                         <X size={16} />
                       </button>
                     </div>
+                    {/* Stage selector */}
+                    <select
+                      className="w-full px-3 py-2 bg-white rounded-xl text-sm mb-2 border border-black/[0.04]"
+                      value={step.stageName}
+                      onChange={(e) => updateStep(i, "stageName", e.target.value)}
+                    >
+                      <option value="Блум">Блум</option>
+                      <option value="Вливание">Вливание</option>
+                      <option value={`Этап ${i + 1}`}>Этап {i + 1}</option>
+                    </select>
+                    {/* Time + Volume + Weight row */}
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Время</label>
+                        <input
+                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          placeholder="0:00"
+                          value={step.startTime}
+                          onChange={(e) => handleTimeChange(i, e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Вода</label>
+                        <input
+                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          placeholder="мл"
+                          type="number"
+                          value={step.pourVolumeMl || ""}
+                          onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Вес</label>
+                        <input
+                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          placeholder="г"
+                          type="number"
+                          value={step.targetWeightG || ""}
+                          onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    {/* Comment */}
                     <input
-                      className="w-full mt-1 px-2 py-1 text-xs text-muted bg-transparent border-b border-line"
-                      placeholder="Комментарий к шагу (необязательно)"
+                      className="w-full px-3 py-2 bg-white rounded-xl text-sm border border-black/[0.04] placeholder:text-muted/60"
+                      placeholder="Комментарий (необязательно)"
                       value={step.comment}
                       onChange={(e) => updateStep(i, "comment", e.target.value)}
                     />
                   </div>
                 ))}
-                {steps.length === 0 && (
-                  <p className="text-xs text-muted text-center py-2">Нет шагов. Нажмите «+ Добавить шаг»</p>
-                )}
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className="w-full mt-3 bg-linen rounded-xl py-3 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-line active:scale-[0.98]"
+                >
+                  + Добавить шаг пролива
+                </button>
               </div>
             </>
           )}
