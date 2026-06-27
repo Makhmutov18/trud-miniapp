@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -104,6 +104,19 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "trud-miniapp"}
 
 
+@app.get("/api/debug/routes")
+async def debug_routes() -> list[dict[str, object]]:
+    routes: list[dict[str, object]] = []
+    for route in app.routes:
+        routes.append(
+            {
+                "path": route.path,
+                "methods": sorted(list(route.methods)) if getattr(route, "methods", None) else [],
+            }
+        )
+    return routes
+
+
 # Serve static frontend files
 if FRONTEND_DIST.exists():
     assets_dir = FRONTEND_DIST / "assets"
@@ -117,9 +130,10 @@ if FRONTEND_DIST.exists():
 @app.get("/{path:path}", include_in_schema=False)
 async def serve_spa(path: str) -> FileResponse:
     """Serve SPA for all non-API routes."""
+    if path == "api" or path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
     index = FRONTEND_DIST / "index.html"
     if not index.exists():
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Frontend build not found")
     requested = FRONTEND_DIST / path
     if requested.is_file():

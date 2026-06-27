@@ -136,170 +136,171 @@ function stripClientFields<T extends Record<string, any>>(data: T): Record<strin
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+async function apiRequest<T>(url: string, init: RequestInit | undefined, fallbackMessage: string): Promise<T> {
+  const response = await fetch(url, init);
+  const contentType = response.headers.get("content-type") || "";
+  const body = await response.text();
+
+  if (!response.ok) {
+    console.error("API request failed", {
+      method: init?.method ?? "GET",
+      url,
+      status: response.status,
+      contentType,
+      body: body.slice(0, 500),
+    });
+    throw new Error(body ? `${fallbackMessage}: ${body}` : `${fallbackMessage}: ${response.status} ${response.statusText}`);
+  }
+
+  if (!body) return null as T;
+
+  try {
+    return JSON.parse(body) as T;
+  } catch (error) {
+    console.error("API JSON parse failed", {
+      method: init?.method ?? "GET",
+      url,
+      status: response.status,
+      contentType,
+      body: body.slice(0, 500),
+      error,
+    });
+    throw new Error(`Некорректный JSON от API ${url}: ${body.slice(0, 300)}`);
+  }
+}
+
 // === Brew Bar ===
 
 export async function fetchBrewBarRecipes(method?: BrewMethod): Promise<BrewBarRecipe[]> {
   const query = method ? `?method=${method}` : "";
-  const response = await fetch(`${API_BASE}/api/recipes/brew-bar${query}`);
-  if (!response.ok) throw new Error("Не удалось загрузить рецепты воронок");
-  return response.json();
+  return apiRequest<BrewBarRecipe[]>(`${API_BASE}/api/recipes/brew-bar${query}`, undefined, "Не удалось загрузить рецепты воронок");
 }
 
 export async function createBrewBar(payload: Omit<BrewBarRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BrewBarRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/brew-bar`, {
+  return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось создать рецепт");
-  return response.json();
+  }, "Не удалось создать рецепт");
 }
 
 export async function updateBrewBar(recipeId: string, payload: Partial<BrewBarRecipe>): Promise<BrewBarRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
+  return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось обновить рецепт");
-  return response.json();
+  }, "Не удалось обновить рецепт");
 }
 
 export async function replaceBrewBar(recipeId: string, payload: Omit<BrewBarRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BrewBarRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
+  return apiRequest<BrewBarRecipe>(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось заменить рецепт");
-  return response.json();
+  }, "Не удалось заменить рецепт");
 }
 
 export async function deleteBrewBar(recipeId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, { method: "DELETE" });
+  await apiRequest<null>(`${API_BASE}/api/recipes/brew-bar/${recipeId}`, { method: "DELETE" }, "Не удалось удалить рецепт");
 }
 
 // === Batch Brew ===
 
 export async function fetchBatchBrewRecipes(): Promise<BatchBrewRecipe[]> {
-  const response = await fetch(`${API_BASE}/api/recipes/batch-brew`);
-  if (!response.ok) throw new Error("Не удалось загрузить рецепты батч-брю");
-  return response.json();
+  return apiRequest<BatchBrewRecipe[]>(`${API_BASE}/api/recipes/batch-brew`, undefined, "Не удалось загрузить рецепты батч-брю");
 }
 
 export async function createBatchBrew(payload: Omit<BatchBrewRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BatchBrewRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/batch-brew`, {
+  return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось создать рецепт");
-  return response.json();
+  }, "Не удалось создать рецепт");
 }
 
 export async function updateBatchBrew(recipeId: string, payload: Partial<BatchBrewRecipe>): Promise<BatchBrewRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
+  return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось обновить рецепт");
-  return response.json();
+  }, "Не удалось обновить рецепт");
 }
 
 export async function replaceBatchBrew(recipeId: string, payload: Omit<BatchBrewRecipe, "id" | "type" | "createdAt" | "updatedAt">): Promise<BatchBrewRecipe> {
-  const response = await fetch(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
+  return apiRequest<BatchBrewRecipe>(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось заменить рецепт");
-  return response.json();
+  }, "Не удалось заменить рецепт");
 }
 
 export async function deleteBatchBrew(recipeId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, { method: "DELETE" });
+  await apiRequest<null>(`${API_BASE}/api/recipes/batch-brew/${recipeId}`, { method: "DELETE" }, "Не удалось удалить рецепт");
 }
 
 // === Signature TTK ===
 
 export async function fetchSignatureTtks(category?: SignatureDrinkCategory): Promise<SignatureTtk[]> {
   const query = category ? `?category=${category}` : "";
-  const response = await fetch(`${API_BASE}/api/recipes/signature-ttk${query}`);
-  if (!response.ok) throw new Error("Не удалось загрузить ТТК");
-  return response.json();
+  return apiRequest<SignatureTtk[]>(`${API_BASE}/api/recipes/signature-ttk${query}`, undefined, "Не удалось загрузить ТТК");
 }
 
 export async function createSignatureTtk(payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
-  const response = await fetch(`${API_BASE}/api/recipes/signature-ttk`, {
+  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось создать ТТК");
-  return response.json();
+  }, "Не удалось создать ТТК");
 }
 
 export async function updateSignatureTtk(ttkId: string, payload: Partial<SignatureTtk>): Promise<SignatureTtk> {
-  const response = await fetch(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
+  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось обновить ТТК");
-  return response.json();
+  }, "Не удалось обновить ТТК");
 }
 
 export async function replaceSignatureTtk(ttkId: string, payload: Omit<SignatureTtk, "id" | "type" | "createdAt" | "updatedAt">): Promise<SignatureTtk> {
-  const response = await fetch(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
+  return apiRequest<SignatureTtk>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stripClientFields(payload)),
-  });
-  if (!response.ok) throw new Error("Не удалось заменить ТТК");
-  return response.json();
+  }, "Не удалось заменить ТТК");
 }
 
 export async function deleteSignatureTtk(ttkId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, { method: "DELETE" });
+  await apiRequest<null>(`${API_BASE}/api/recipes/signature-ttk/${ttkId}`, { method: "DELETE" }, "Не удалось удалить ТТК");
 }
 
 // === All recipes ===
 
 export async function fetchAllRecipes(): Promise<RecipesByType> {
-  const response = await fetch(`${API_BASE}/api/recipes`);
-  if (!response.ok) throw new Error("Не удалось загрузить рецепты");
-  return response.json();
+  return apiRequest<RecipesByType>(`${API_BASE}/api/recipes`, undefined, "Не удалось загрузить рецепты");
 }
 
 // === Items (pastry, checklist) ===
 
 export async function fetchItems(category: string): Promise<ItemResponse[]> {
-  const response = await fetch(`${API_BASE}/api/items?category=${category}`);
-  if (!response.ok) throw new Error("Не удалось загрузить");
-  return response.json();
+  return apiRequest<ItemResponse[]>(`${API_BASE}/api/items?category=${category}`, undefined, "Не удалось загрузить");
 }
 
 export async function createItem(payload: ItemCreatePayload): Promise<ItemResponse> {
-  const response = await fetch(`${API_BASE}/api/items`, {
+  return apiRequest<ItemResponse>(`${API_BASE}/api/items`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error("Не удалось создать");
-  return response.json();
+  }, "Не удалось создать");
 }
 
 export async function updateItem(itemId: string, payload: Partial<ItemCreatePayload>): Promise<ItemResponse> {
-  const response = await fetch(`${API_BASE}/api/items/${itemId}`, {
+  return apiRequest<ItemResponse>(`${API_BASE}/api/items/${itemId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error("Не удалось обновить");
-  return response.json();
+  }, "Не удалось обновить");
 }
 
 export async function deleteItem(itemId: string): Promise<void> {
-  await fetch(`${API_BASE}/api/items/${itemId}`, { method: "DELETE" });
+  await apiRequest<null>(`${API_BASE}/api/items/${itemId}`, { method: "DELETE" }, "Не удалось удалить");
 }

@@ -284,6 +284,8 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [isEditingItem, setIsEditingItem] = useState(false);
+  const [createRecipeType, setCreateRecipeType] = useState<TabId | null>(null);
+  const [createItemCategory, setCreateItemCategory] = useState<"pastry" | "checklist" | null>(null);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [globalQuery, setGlobalQuery] = useState("");
   const [activeChip, setActiveChip] = useState<string | null>(null);
@@ -367,8 +369,8 @@ function App() {
       setSignatureTtks(signature.map(normalizeFolderId));
       setPastryItems(pastry);
       setChecklistItems(checklist);
-    } catch {
-      // silent fail
+    } catch (error) {
+      console.error("loadAll failed", error);
     }
   }
 
@@ -425,6 +427,14 @@ function App() {
 
   // Folders for current tab
   const currentFolders = folders.filter((f) => f.tab === activeTab);
+  const recipeModalType: TabId =
+    isEditing && selectedRecipe
+      ? selectedRecipe.type
+      : createRecipeType ?? activeTab;
+  const itemModalCategory: "pastry" | "checklist" =
+    isEditingItem && selectedItem
+      ? (selectedItem.category === "pastry" ? "pastry" : "checklist")
+      : createItemCategory ?? (activeNav === "pastry" ? "pastry" : "checklist");
 
   const filteredBrewBar = brewBarRecipes.filter((r) => (r.folderId ?? null) === activeFolderId);
   const filteredBatchBrew = batchBrewRecipes.filter((r) => (r.folderId ?? null) === activeFolderId);
@@ -539,6 +549,7 @@ function App() {
                           setSelectedItem(result.item as ItemResponse);
                           setActiveNav(result.kind === "pastry" ? "pastry" : "checklist");
                         } else {
+                          setActiveTab(result.kind);
                           setSelectedRecipe(result.item as any);
                         }
                       }}
@@ -894,6 +905,32 @@ function App() {
                 <span className="font-semibold text-coal text-sm">Булки</span>
               </button>
               <button
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateRecipeType("batch_brew");
+                  setActiveTab("batch_brew");
+                  setActiveNav("recipes");
+                  setIsCreating(true);
+                }}
+                className="hidden"
+              >
+                <Weight size={20} className="text-slate" />
+                <span className="font-semibold text-coal text-sm">Новый рецепт: Батч-брю</span>
+              </button>
+              <button
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateRecipeType("signature_ttk");
+                  setActiveTab("signature_ttk");
+                  setActiveNav("recipes");
+                  setIsCreating(true);
+                }}
+                className="hidden"
+              >
+                <Pencil size={20} className="text-red" />
+                <span className="font-semibold text-coal text-sm">Новый рецепт: Авторский</span>
+              </button>
+              <button
                 onClick={() => { setIsMoreOpen(false); setActiveNav("reports"); }}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
               >
@@ -935,21 +972,63 @@ function App() {
             </div>
             <div className="px-4 space-y-1">
               <button
-                onClick={() => { setIsActionOpen(false); setActiveNav("recipes"); setIsCreating(true); }}
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateRecipeType("brew_bar");
+                  setActiveTab("brew_bar");
+                  setActiveNav("recipes");
+                  setIsCreating(true);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
               >
                 <Droplets size={20} className="text-accent" />
-                <span className="font-semibold text-coal text-sm">Новый рецепт</span>
+                <span className="font-semibold text-coal text-sm">Новый рецепт: Воронка</span>
               </button>
               <button
-                onClick={() => { setIsActionOpen(false); setActiveNav("pastry"); setIsCreatingItem(true); }}
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateRecipeType("batch_brew");
+                  setActiveTab("batch_brew");
+                  setActiveNav("recipes");
+                  setIsCreating(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Weight size={20} className="text-slate" />
+                <span className="font-semibold text-coal text-sm">Новый рецепт: Батч-брю</span>
+              </button>
+              <button
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateRecipeType("signature_ttk");
+                  setActiveTab("signature_ttk");
+                  setActiveNav("recipes");
+                  setIsCreating(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
+              >
+                <Pencil size={20} className="text-red" />
+                <span className="font-semibold text-coal text-sm">Новый рецепт: Авторский</span>
+              </button>
+              <button
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateItemCategory("pastry");
+                  setActiveNav("pastry");
+                  setIsCreatingItem(true);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
               >
                 <Croissant size={20} className="text-accent" />
                 <span className="font-semibold text-coal text-sm">Новая булка</span>
               </button>
               <button
-                onClick={() => { setIsActionOpen(false); setActiveNav("checklist"); setIsCreatingItem(true); }}
+                onClick={() => {
+                  setIsActionOpen(false);
+                  setCreateItemCategory("checklist");
+                  setActiveNav("checklist");
+                  setIsCreatingItem(true);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-linen transition-colors duration-150"
               >
                 <ClipboardCheck size={20} className="text-green" />
@@ -979,10 +1058,10 @@ function App() {
       {selectedRecipe && !isEditing && (
         <DetailModal
           recipe={selectedRecipe}
-          type={activeTab}
+          type={selectedRecipe.type}
           onClose={() => setSelectedRecipe(null)}
           onEdit={() => setIsEditing(true)}
-          onDelete={() => handleDelete(activeTab, selectedRecipe.id)}
+          onDelete={() => handleDelete(selectedRecipe.type, selectedRecipe.id)}
         />
       )}
 
@@ -999,13 +1078,13 @@ function App() {
       {/* Create/Edit Recipe Modal */}
       {(isCreating || isEditing) && (
         <RecipeFormModal
-          type={activeTab}
-          folders={currentFolders}
+          type={recipeModalType}
+          folders={folders.filter((f) => f.tab === recipeModalType)}
           initial={isEditing ? selectedRecipe : null}
           onDelete={
             isEditing && selectedRecipe
               ? async () => {
-                  await handleDelete(activeTab, selectedRecipe.id);
+                  await handleDelete(selectedRecipe.type, selectedRecipe.id);
                   setIsEditing(false);
                 }
               : undefined
@@ -1014,16 +1093,18 @@ function App() {
             setIsCreating(false);
             setIsEditing(false);
             setSelectedRecipe(null);
+            setCreateRecipeType(null);
           }}
           onSave={async (data) => {
             try {
+              const recipeType = recipeModalType;
               if (isEditing && selectedRecipe) {
-                if (activeTab === "brew_bar") await updateBrewBar(selectedRecipe.id, data as any);
-                else if (activeTab === "batch_brew") await updateBatchBrew(selectedRecipe.id, data as any);
+                if (recipeType === "brew_bar") await updateBrewBar(selectedRecipe.id, data as any);
+                else if (recipeType === "batch_brew") await updateBatchBrew(selectedRecipe.id, data as any);
                 else await updateSignatureTtk(selectedRecipe.id, data as any);
               } else {
-                if (activeTab === "brew_bar") await createBrewBar(data as any);
-                else if (activeTab === "batch_brew") await createBatchBrew(data as any);
+                if (recipeType === "brew_bar") await createBrewBar(data as any);
+                else if (recipeType === "batch_brew") await createBatchBrew(data as any);
                 else await createSignatureTtk(data as any);
               }
               hapticSuccess();
@@ -1031,8 +1112,12 @@ function App() {
               setIsCreating(false);
               setIsEditing(false);
               setSelectedRecipe(null);
-            } catch {
-              alert("Ошибка сохранения");
+              setCreateRecipeType(null);
+              setActiveNav("recipes");
+              setActiveTab(recipeType);
+            } catch (error) {
+              console.error("Save failed", error);
+              alert(error instanceof Error ? error.message : "Ошибка сохранения");
             }
           }}
         />
@@ -1041,7 +1126,7 @@ function App() {
       {/* Create/Edit Item Modal */}
       {(isCreatingItem || isEditingItem) && (
         <ItemFormModal
-          category={activeNav === "pastry" ? "pastry" : "checklist"}
+          category={itemModalCategory}
           initial={isEditingItem ? selectedItem : null}
           onDelete={
             isEditingItem && selectedItem
@@ -1055,6 +1140,7 @@ function App() {
             setIsCreatingItem(false);
             setIsEditingItem(false);
             setSelectedItem(null);
+            setCreateItemCategory(null);
           }}
           onSave={async (data) => {
             try {
@@ -1068,8 +1154,11 @@ function App() {
               setIsCreatingItem(false);
               setIsEditingItem(false);
               setSelectedItem(null);
-            } catch {
-              alert("Ошибка сохранения");
+              setCreateItemCategory(null);
+              setActiveNav(itemModalCategory === "pastry" ? "pastry" : "checklist");
+            } catch (error) {
+              console.error("Save failed", error);
+              alert(error instanceof Error ? error.message : "Ошибка сохранения");
             }
           }}
         />
