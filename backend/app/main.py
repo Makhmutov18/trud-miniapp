@@ -107,6 +107,9 @@ async def health() -> dict[str, str]:
 
 @app.get("/api/debug/routes")
 async def debug_routes() -> list[dict[str, object]]:
+    if os.getenv("TRUD_ENABLE_DEBUG_ROUTES", "").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not Found")
+
     routes: list[dict[str, object]] = []
     for route in app.routes:
         routes.append(
