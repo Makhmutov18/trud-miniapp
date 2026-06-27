@@ -1927,8 +1927,8 @@ function RecipeFormModal({
   }
 
   function addStep() {
-    const nextIndex = steps.length + 1;
-    setSteps([...steps, { startTime: "0:00", stageName: `Этап ${nextIndex}`, pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
+    const stageName = steps.length === 0 ? "Блум" : "Вливание";
+    setSteps([...steps, { startTime: "0:00", stageName, pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
   }
 
   function updateStep(i: number, field: keyof BrewBarStep, value: string | number) {
@@ -1970,7 +1970,7 @@ function RecipeFormModal({
       // Normalize steps: ensure stageName is never empty
       const normalizedSteps = steps.map((s, i) => ({
         ...s,
-        stageName: s.stageName?.trim() || `Этап ${i + 1}`,
+        stageName: s.stageName?.trim() || (i === 0 ? "Блум" : "Вливание"),
       }));
       if (type === "brew_bar") {
         await onSave({
@@ -2188,14 +2188,14 @@ function RecipeFormModal({
                   <p className="text-xs text-muted text-center py-6">Нет шагов. Добавьте первый шаг пролива</p>
                 )}
                 {steps.map((step, i) => (
-                  <div key={i} className="bg-linen/70 rounded-xl p-3 mb-3 last:mb-0">
+                  <div key={i} className="bg-[#F5F2EB] rounded-xl p-3.5 mb-4 last:mb-0 border border-black/[0.06] shadow-sm">
                     {/* Header: Шаг N + удалить */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-bold text-coal">Шаг {i + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeStep(i)}
-                        className="p-1.5 text-red/70 hover:text-red transition-colors duration-150"
+                        className="p-1.5 text-red/60 hover:text-red transition-colors duration-150"
                         aria-label={`Удалить шаг ${i + 1}`}
                       >
                         <X size={16} />
@@ -2203,49 +2203,54 @@ function RecipeFormModal({
                     </div>
                     {/* Stage selector */}
                     <select
-                      className="w-full px-3 py-2 bg-white rounded-xl text-sm mb-2 border border-black/[0.04]"
+                      className="w-full px-3 py-2.5 bg-white rounded-xl text-sm mb-3 border border-black/[0.06] shadow-sm"
                       value={step.stageName}
                       onChange={(e) => updateStep(i, "stageName", e.target.value)}
                     >
                       <option value="Блум">Блум</option>
                       <option value="Вливание">Вливание</option>
-                      <option value={`Этап ${i + 1}`}>Этап {i + 1}</option>
                     </select>
                     {/* Time + Volume + Weight row */}
-                    <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div className="grid grid-cols-3 gap-2.5 mb-3">
                       <div>
-                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Время</label>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Время</label>
                         <input
-                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
                           placeholder="0:00"
+                          inputMode="numeric"
                           value={step.startTime}
+                          onFocus={(e) => e.currentTarget.select()}
                           onChange={(e) => handleTimeChange(i, e.target.value)}
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Вода</label>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Вода</label>
                         <input
-                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
                           placeholder="мл"
                           type="number"
+                          inputMode="numeric"
                           value={step.pourVolumeMl || ""}
+                          onFocus={(e) => e.currentTarget.select()}
                           onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1">Вес</label>
+                        <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Вес</label>
                         <input
-                          className="w-full px-3 py-2 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.04]"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
                           placeholder="г"
                           type="number"
+                          inputMode="numeric"
                           value={step.targetWeightG || ""}
+                          onFocus={(e) => e.currentTarget.select()}
                           onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
                         />
                       </div>
                     </div>
                     {/* Comment */}
                     <input
-                      className="w-full px-3 py-2 bg-white rounded-xl text-sm border border-black/[0.04] placeholder:text-muted/60"
+                      className="w-full px-3 py-2.5 bg-white rounded-xl text-sm border border-black/[0.06] shadow-sm placeholder:text-muted/60"
                       placeholder="Комментарий (необязательно)"
                       value={step.comment}
                       onChange={(e) => updateStep(i, "comment", e.target.value)}
@@ -2255,7 +2260,7 @@ function RecipeFormModal({
                 <button
                   type="button"
                   onClick={addStep}
-                  className="w-full mt-3 bg-linen rounded-xl py-3 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-line active:scale-[0.98]"
+                  className="w-full mt-4 bg-linen rounded-xl py-3.5 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-line active:scale-[0.98]"
                 >
                   + Добавить шаг пролива
                 </button>
