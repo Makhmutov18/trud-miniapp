@@ -14,6 +14,8 @@
 - Не менять backend schema без Alembic migration.
 - Не удалять данные.
 - Не делать `drop table` и `drop column` без явного разрешения.
+- Не делать большой SaaS-refactor без отдельного подтверждения.
+- Не добавлять billing, multi-tenant, invite flow или subscription-логику случайно.
 
 ## Что нельзя коммитить
 
@@ -58,3 +60,8 @@
 - commit hash;
 - результат push;
 - что проверить после Railway deploy.
+
+## Product direction
+
+- Если задача касается продуктовой архитектуры, помнить: TRUD — первый pilot, а не единственный будущий клиент.
+- Держать изменения маленькими и production-safe.
