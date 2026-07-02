@@ -77,6 +77,24 @@ const logoLetters = [
   { char: "Д", className: "text-coal", x: 20, y: -8, rotate: 14 },
 ];
 
+function selectInputText(event: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) {
+  window.requestAnimationFrame(() => {
+    event.currentTarget.select();
+  });
+}
+
+function getDefaultBrewStageName(index: number) {
+  return index === 0 ? "Блум" : "Вливание";
+}
+
+function normalizeBrewStageName(stageName: string | undefined, index: number) {
+  const normalized = stageName?.trim();
+  if (normalized === "Блум" || normalized === "Вливание") {
+    return normalized;
+  }
+  return getDefaultBrewStageName(index);
+}
+
 function loadFolders(): RecipeFolder[] {
   try {
     const raw = localStorage.getItem(FOLDERS_KEY);
@@ -1927,7 +1945,7 @@ function RecipeFormModal({
   }
 
   function addStep() {
-    const stageName = steps.length === 0 ? "Блум" : "Вливание";
+    const stageName = getDefaultBrewStageName(steps.length);
     setSteps([...steps, { startTime: "0:00", stageName, pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
   }
 
@@ -1967,10 +1985,9 @@ function RecipeFormModal({
     e.preventDefault();
     setSaving(true);
     try {
-      // Normalize steps: ensure stageName is never empty
       const normalizedSteps = steps.map((s, i) => ({
         ...s,
-        stageName: s.stageName?.trim() || (i === 0 ? "Блум" : "Вливание"),
+        stageName: normalizeBrewStageName(s.stageName, i),
       }));
       if (type === "brew_bar") {
         await onSave({
@@ -2204,7 +2221,7 @@ function RecipeFormModal({
                     {/* Stage segmented control */}
                     <div className="mb-3">
                       <StageSegmentedControl
-                        value={step.stageName === "Блум" ? "Блум" : "Вливание"}
+                        value={normalizeBrewStageName(step.stageName, i)}
                         onChange={(v) => updateStep(i, "stageName", v)}
                       />
                     </div>
@@ -2217,7 +2234,8 @@ function RecipeFormModal({
                           placeholder="0:00"
                           inputMode="numeric"
                           value={step.startTime}
-                          onFocus={(e) => e.currentTarget.select()}
+                          onFocus={selectInputText}
+                          onClick={selectInputText}
                           onChange={(e) => handleTimeChange(i, e.target.value)}
                         />
                       </div>
@@ -2229,7 +2247,8 @@ function RecipeFormModal({
                           type="number"
                           inputMode="numeric"
                           value={step.pourVolumeMl || ""}
-                          onFocus={(e) => e.currentTarget.select()}
+                          onFocus={selectInputText}
+                          onClick={selectInputText}
                           onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
                         />
                       </div>
@@ -2241,7 +2260,8 @@ function RecipeFormModal({
                           type="number"
                           inputMode="numeric"
                           value={step.targetWeightG || ""}
-                          onFocus={(e) => e.currentTarget.select()}
+                          onFocus={selectInputText}
+                          onClick={selectInputText}
                           onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
                         />
                       </div>
@@ -2442,14 +2462,15 @@ function StageSegmentedControl({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const options = ["Блум", "Вливание"];
+  const options = ["Блум", "Вливание"] as const;
+  const activeValue = value === "Блум" ? "Блум" : "Вливание";
   return (
-    <div className="relative flex bg-[#F5F2EB] rounded-xl p-0.5 border border-black/[0.06]">
+    <div className="relative flex rounded-xl border border-black/[0.06] bg-[#F5F2EB] p-0.5">
       <div
-        className="absolute top-0.5 bottom-0.5 rounded-[10px] bg-white shadow-sm border border-black/[0.04] transition-all duration-200"
+        className="absolute bottom-0.5 top-0.5 rounded-[10px] border border-black/[0.04] bg-white shadow-sm transition-all duration-200"
         style={{
-          left: value === "Блум" ? "2px" : "50%",
-          right: value === "Блум" ? "50%" : "2px",
+          left: activeValue === "Блум" ? "2px" : "50%",
+          right: activeValue === "Блум" ? "50%" : "2px",
         }}
       />
       {options.map((opt) => (
@@ -2458,8 +2479,9 @@ function StageSegmentedControl({
           type="button"
           onClick={() => onChange(opt)}
           className={`relative z-10 flex-1 py-2 text-sm font-semibold rounded-[10px] transition-colors duration-200 ${
-            value === opt ? "text-stone-900" : "text-muted"
+            activeValue === opt ? "text-stone-900" : "text-muted"
           }`}
+          aria-pressed={activeValue === opt}
         >
           {opt}
         </button>
