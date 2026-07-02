@@ -104,6 +104,27 @@ function normalizeStepAmount(value: number | "") {
   return value === "" ? 0 : value;
 }
 
+function sanitizeBrewTimeInput(value: string) {
+  return value.replace(/[^\d:]/g, "");
+}
+
+function normalizeBrewTimeInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "0:00";
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "0:00";
+  if (digits.length <= 1) {
+    return `0:0${digits}`;
+  }
+  if (digits.length === 2) {
+    return `0:${digits}`;
+  }
+  if (digits.length === 3) {
+    return `${digits[0]}:${digits.slice(1)}`;
+  }
+  return `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+}
+
 function loadFolders(): RecipeFolder[] {
   try {
     const raw = localStorage.getItem(FOLDERS_KEY);
@@ -1972,24 +1993,7 @@ function RecipeFormModal({
 
   // Smart time input: auto-insert colon after minutes
   function handleTimeChange(i: number, raw: string) {
-    // Remove all non-digit characters
-    const digits = raw.replace(/\D/g, "");
-    if (digits.length === 0) {
-      updateStep(i, "startTime", "");
-      return;
-    }
-    // Format as M:SS or MM:SS
-    let formatted: string;
-    if (digits.length <= 1) {
-      formatted = `0:0${digits}`;
-    } else if (digits.length === 2) {
-      formatted = `0:${digits}`;
-    } else if (digits.length === 3) {
-      formatted = `${digits[0]}:${digits.slice(1)}`;
-    } else {
-      formatted = `${digits.slice(0, -2)}:${digits.slice(-2)}`;
-    }
-    updateStep(i, "startTime", formatted);
+    updateStep(i, "startTime", sanitizeBrewTimeInput(raw));
   }
 
   function removeStep(i: number) {
@@ -2014,7 +2018,7 @@ function RecipeFormModal({
           waterPpm: waterPpm !== "" ? Number(waterPpm) : null,
           steps: normalizedSteps.map((step) => ({
             ...step,
-            startTime: step.startTime.trim() || "0:00",
+            startTime: normalizeBrewTimeInput(step.startTime),
             pourVolumeMl: normalizeStepAmount(step.pourVolumeMl),
             targetWeightG: normalizeStepAmount(step.targetWeightG),
           })),
