@@ -95,6 +95,15 @@ function normalizeBrewStageName(stageName: string | undefined, index: number) {
   return getDefaultBrewStageName(index);
 }
 
+type BrewBarStepDraft = Omit<BrewBarStep, "pourVolumeMl" | "targetWeightG"> & {
+  pourVolumeMl: number | "";
+  targetWeightG: number | "";
+};
+
+function normalizeStepAmount(value: number | "") {
+  return value === "" ? 0 : value;
+}
+
 function loadFolders(): RecipeFolder[] {
   try {
     const raw = localStorage.getItem(FOLDERS_KEY);
@@ -1909,7 +1918,13 @@ function RecipeFormModal({
   const [storage, setStorage] = useState(initial?.storageConditions ?? "");
 
   // Brew Bar steps
-  const [steps, setSteps] = useState<BrewBarStep[]>(initial?.steps ?? []);
+  const [steps, setSteps] = useState<BrewBarStepDraft[]>(
+    initial?.steps?.map((step: BrewBarStep) => ({
+      ...step,
+      pourVolumeMl: step.pourVolumeMl ?? "",
+      targetWeightG: step.targetWeightG ?? "",
+    })) ?? []
+  );
 
   async function handlePhotoUpload(file: File) {
     setPhotoSource(await readFileAsDataUrl(file));
@@ -1946,10 +1961,10 @@ function RecipeFormModal({
 
   function addStep() {
     const stageName = getDefaultBrewStageName(steps.length);
-    setSteps([...steps, { startTime: "0:00", stageName, pourVolumeMl: 0, targetWeightG: 0, comment: "" }]);
+    setSteps([...steps, { startTime: "", stageName, pourVolumeMl: "", targetWeightG: "", comment: "" }]);
   }
 
-  function updateStep(i: number, field: keyof BrewBarStep, value: string | number) {
+  function updateStep(i: number, field: keyof BrewBarStepDraft, value: string | number) {
     const updated = [...steps];
     (updated[i] as any)[field] = value;
     setSteps(updated);
@@ -1997,7 +2012,14 @@ function RecipeFormModal({
           coffeeWeightG, waterVolumeMl,
           temperature: temperature !== "" ? Number(temperature) : null,
           waterPpm: waterPpm !== "" ? Number(waterPpm) : null,
-          steps: normalizedSteps, cupDescription, notes,
+          steps: normalizedSteps.map((step) => ({
+            ...step,
+            startTime: step.startTime.trim() || "0:00",
+            pourVolumeMl: normalizeStepAmount(step.pourVolumeMl),
+            targetWeightG: normalizeStepAmount(step.targetWeightG),
+          })),
+          cupDescription,
+          notes,
         });
       } else if (type === "batch_brew") {
         await onSave({
@@ -2230,7 +2252,7 @@ function RecipeFormModal({
                       <div>
                         <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Время</label>
                         <input
-                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm placeholder:text-muted/40"
                           placeholder="0:00"
                           inputMode="numeric"
                           value={step.startTime}
@@ -2242,27 +2264,27 @@ function RecipeFormModal({
                       <div>
                         <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Вода</label>
                         <input
-                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm placeholder:text-muted/40"
                           placeholder="мл"
                           type="number"
                           inputMode="numeric"
-                          value={step.pourVolumeMl || ""}
+                          value={step.pourVolumeMl === "" ? "" : step.pourVolumeMl}
                           onFocus={selectInputText}
                           onClick={selectInputText}
-                          onChange={(e) => updateStep(i, "pourVolumeMl", Number(e.target.value))}
+                          onChange={(e) => updateStep(i, "pourVolumeMl", e.target.value === "" ? "" : Number(e.target.value))}
                         />
                       </div>
                       <div>
                         <label className="block text-[10px] font-semibold text-muted uppercase mb-1.5">Вес</label>
                         <input
-                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm"
+                          className="w-full px-3 py-2.5 bg-white rounded-xl text-sm font-mono text-center border border-black/[0.06] shadow-sm placeholder:text-muted/40"
                           placeholder="г"
                           type="number"
                           inputMode="numeric"
-                          value={step.targetWeightG || ""}
+                          value={step.targetWeightG === "" ? "" : step.targetWeightG}
                           onFocus={selectInputText}
                           onClick={selectInputText}
-                          onChange={(e) => updateStep(i, "targetWeightG", Number(e.target.value))}
+                          onChange={(e) => updateStep(i, "targetWeightG", e.target.value === "" ? "" : Number(e.target.value))}
                         />
                       </div>
                     </div>
