@@ -59,6 +59,45 @@ That means:
 - current implementation can stay single-workspace for now;
 - future planning should avoid making TRUD-specific assumptions harder to remove.
 
+## Universal SaaS product direction
+
+The long-term product should be a reusable Bar Ops / Standards tool, not a custom app design for one cafe.
+
+Core principle:
+
+- one product;
+- many coffee shops;
+- one shared UI/UX;
+- many workspaces.
+
+TRUD is the first workspace, not the brand of the entire product.
+
+That means:
+
+- TRUD can be used as pilot content, demo content, and a real operating case;
+- the UI should stay neutral, professional, and reusable across different cafes;
+- the interface should not become a custom theme for each location;
+- product decisions should favor reuse over brand-specific styling.
+
+Allowed customization should stay narrow:
+
+- workspace name;
+- workspace logo/avatar;
+- locations / spots;
+- users and roles;
+- recipes;
+- checklists;
+- menu/items content.
+
+Not allowed as a default product direction:
+
+- unique visual themes per cafe;
+- brand-heavy UI built around TRUD;
+- one-off layout changes for each customer;
+- custom agency-style redesigns per workspace.
+
+The product should feel like a general staff tool that a coffee business joins, not like a new design made from scratch for every client.
+
 ## Core advantages
 
 The current and near-future product promise is simple:
